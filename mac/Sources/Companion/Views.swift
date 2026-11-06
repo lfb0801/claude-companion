@@ -85,8 +85,6 @@ struct Toolbar: View {
       Button { model.startRemarc() } label: {
         Image(systemName: model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "ellipsis.bubble" : "checkmark.bubble") : "exclamationmark.bubble" } ?? "text.bubble")
       }.hint("Remarc link", model.remarcResult?.message ?? "Link the main session so Remarc comments arrive as prompts and get routed to nested sessions")
-      Button { model.hideToolbar?() } label: { Image(systemName: "eye.slash") }
-        .hint("Hide", "Hide the toolbar · \(HotKeys.symbol)T or the menu bar icon brings it back")
       Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8)
         .hint("Connection", model.connected ? "Connected to the companion server" : "Server offline, retrying")
     }
