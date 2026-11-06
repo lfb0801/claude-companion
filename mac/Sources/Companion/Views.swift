@@ -33,16 +33,39 @@ struct LogPanel: View {
   }
 }
 
-/// The floating toolbar: tools, sound, sessions, connection.
+/// The floating toolbar: tools, sound, sessions, connection. The line under the buttons names whatever
+/// the pointer is over, because native tooltips do not appear on a panel that never takes focus.
 struct Toolbar: View {
   @ObservedObject var model: AppModel
+  @State private var frames: [String: HintFrame] = [:]
+  /// What the pointer is over, from the pointer position the hosting view reports (see HoverHostingView).
+  private var hint: (name: String, text: String)? {
+    guard let p = model.toolbarPointer, let h = frames.first(where: { $0.value.rect.insetBy(dx: -3, dy: -3).contains(p) }) else { return nil }
+    return (h.key, h.value.text)
+  }
   var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      buttons
+      Color.clear.frame(height: 30).overlay(alignment: .topLeading) {
+        if let h = hint {
+          (Text(h.name).bold().foregroundColor(lime) + Text("  " + h.text).foregroundColor(.secondary)).font(.system(size: 11)).lineLimit(2)
+        } else {
+          Text("Hover a button to see what it does").font(.system(size: 11)).foregroundStyle(.tertiary)
+        }
+      }
+    }
+    .padding(8).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 10))
+    .coordinateSpace(name: "toolbar")
+    .onPreferenceChange(HintFrames.self) { frames = $0 }
+  }
+  private var buttons: some View {
     HStack(spacing: 6) {
       tool("W", "lasso", "Whip", \.whip, help: "Swing it to approve what the lash hits; click a prompt to stamp it with the handle (deny)")
       tool("G", "scope", "Cannon", \.cannon, help: "Hold the mouse to fire approvals")
       tool("D", "square.and.pencil", "Stamp", \.stamp, help: "Click a prompt or its cards to request changes (deny)")
       tool("H", "person.fill.checkmark", "Approval Intern", \.intern, help: "Approves every prompt, in every session")
-      Button { model.toggle(\.muted) } label: { Image(systemName: model.tools.muted ? "speaker.slash.fill" : "speaker.wave.2.fill") }.help("Sound · \(HotKeys.symbol)M from any app")
+      Button { model.toggle(\.muted) } label: { Image(systemName: model.tools.muted ? "speaker.slash.fill" : "speaker.wave.2.fill") }
+        .hint("Sound", "Mute or unmute the stage · \(HotKeys.symbol)M from any app")
       Menu {
         if model.sessions.all.isEmpty { Text("No sessions yet") }
         ForEach(model.sessions.all, id: \.id) { s in
@@ -52,19 +75,41 @@ struct Toolbar: View {
       } label: {
         let picked = model.sessions.all.first { $0.id == model.selectedSession }
         Text(picked.map { "✓ \($0.folder ?? "session")" } ?? "Sessions \(model.sessions.all.count)")
-      }.fixedSize()
+      }.fixedSize().hint("Sessions", "Pick a session to open its transcript and answer its prompt")
+      Divider().frame(height: 16)
+      Button { Remarc.press(.screenshot) } label: { Image(systemName: "camera.viewfinder") }
+        .hint("Remarc screenshot", "Capture part of the screen as a Remarc comment · \(HotKeys.symbol)S")
+      Button { Remarc.press(.note) } label: { Image(systemName: "note.text.badge.plus") }
+        .hint("Remarc note", "Comment on the text selected in the app behind this bar · \(HotKeys.symbol)C")
       Button { model.startRemarc() } label: {
         Image(systemName: model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "ellipsis.bubble" : "checkmark.bubble") : "exclamationmark.bubble" } ?? "text.bubble")
-      }.help(model.remarcResult?.message ?? "Remarc: link the main session; its comments arrive as prompts and it routes them to nested sessions")
-      Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8).help(model.connected ? "Connected to the companion server" : "Server offline, retrying")
+      }.hint("Remarc link", model.remarcResult?.message ?? "Link the main session so Remarc comments arrive as prompts and get routed to nested sessions")
+      Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8)
+        .hint("Connection", model.connected ? "Connected to the companion server" : "Server offline, retrying")
     }
     .buttonStyle(.bordered).controlSize(.small)
-    .padding(8).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 10))
   }
   private func tool(_ key: String, _ icon: String, _ name: String, _ kp: WritableKeyPath<Tools, Bool>, help: String) -> some View {
     let on = model.tools[keyPath: kp]
     return Button { model.toggle(kp) } label: { Image(systemName: icon).font(.system(size: 14, weight: .semibold)) }
       .tint(on ? lime : nil).buttonStyle(.borderedProminent)
-      .help("\(name): \(help) · \(HotKeys.symbol)\(key) from any app")
+      .hint(name, "\(help) · \(HotKeys.symbol)\(key) from any app")
+  }
+}
+
+struct HintFrame: Equatable { var rect: CGRect; var text: String }
+
+struct HintFrames: PreferenceKey {
+  static let defaultValue: [String: HintFrame] = [:]
+  static func reduce(value: inout [String: HintFrame], nextValue: () -> [String: HintFrame]) { value.merge(nextValue()) { $1 } }
+}
+
+private extension View {
+  /// Registers this view's frame so the toolbar's caption line can name it while the pointer is over it
+  /// (and sets a native tooltip too).
+  func hint(_ name: String, _ text: String) -> some View {
+    help("\(name): \(text)").background(GeometryReader { g in
+      Color.clear.preference(key: HintFrames.self, value: [name: HintFrame(rect: g.frame(in: .named("toolbar")), text: text)])
+    })
   }
 }

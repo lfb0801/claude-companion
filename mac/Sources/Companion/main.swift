@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     p.isMovableByWindowBackground = true
     p.hidesOnDeactivate = false
-    let host = NSHostingView(rootView: Toolbar(model: model))
+    let host = HoverHostingView(rootView: Toolbar(model: model)); host.model = model
     p.contentView = host
     p.setContentSize(host.fittingSize)
     let s = NSScreen.main?.visibleFrame ?? .zero

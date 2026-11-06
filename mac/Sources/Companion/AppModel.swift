@@ -75,6 +75,8 @@ final class AppModel: ObservableObject {
   }
 
   /// Outcome of the last "Remarc" click: nil = none yet, else (ok, message).
+  /// Pointer over the toolbar in its own SwiftUI coordinates; nil when outside.
+  @Published var toolbarPointer: CGPoint?
   @Published var remarcResult: (ok: Bool, message: String)?
 
   /// From the toolbar: starts a Remarc session for the selected Claude session, so its comments reach that session as prompts.
