@@ -8,12 +8,16 @@ public enum Sound: Equatable, Sendable {
   case whipCue, cannonCue, stopCues
 }
 
+/// The whip approves by swinging (no click); a click with it stamps with the back of the handle (deny).
 public struct Tools: Equatable, Sendable {
-  public var whip = false, cannon = false, stamp = false, intern = false, muted = false
+  public var whip = false, cannon = false, intern = false, muted = false
   public init() {}
-  public var anyArmed: Bool { whip || cannon || stamp || intern }
-  /// Tools that take the mouse while armed (the Intern works on its own).
-  public var takesMouse: Bool { whip || cannon || stamp }
+  public var anyArmed: Bool { whip || cannon || intern }
+  /// Tools in your hand: they follow the cursor (the Intern works on its own).
+  public var inHand: Bool { whip || cannon }
+  /// The cannon takes every click (hold to fire). The whip only takes clicks on a character or
+  /// its prompt (to stamp); anywhere else your clicks still go to your other apps.
+  public var takesMouse: Bool { cannon }
 }
 
 public enum Tone: Sendable { case lime, amber, red, cream, grey }
@@ -184,8 +188,6 @@ public final class Stage {
     if t.cannon && !was.cannon { cannonEntry = 90; if !t.muted { onSound(.cannonCue) } }
     if t.whip && !was.whip { whip = Whip(mouse.x, mouse.y, width: width, height: height); swing = SwingGate(); swing.last = mouse; if !t.muted { onSound(.whipCue) } }
     if !t.whip { whip = nil }
-    if t.stamp && !was.stamp { onSound(.toggle(on: true)); burst(mouse.x, mouse.y, "D", .red, 5) }
-    if !t.stamp && was.stamp { onSound(.toggle(on: false)) }
     if t.muted && !was.muted { onSound(.stopCues) }
   }
 

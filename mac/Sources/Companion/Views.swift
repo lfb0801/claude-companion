@@ -107,9 +107,8 @@ struct Toolbar: View {
   @ObservedObject var model: AppModel
   var body: some View {
     HStack(spacing: 6) {
-      tool("W", "Whip", \.whip, help: "Approves what it hits. Click to crack, Esc or right-click to put away")
+      tool("W", "Whip", \.whip, help: "Swing it to approve what the lash hits; click a prompt to stamp it with the handle (deny)")
       tool("G", "Cannon", \.cannon, help: "Hold the mouse to fire approvals")
-      tool("D", "Stamp", \.stamp, help: "Click a prompt to deny it")
       tool("H", "Intern", \.intern, help: "Approves every prompt, in every session")
       Button { model.toggle(\.muted) } label: { Image(systemName: model.tools.muted ? "speaker.slash.fill" : "speaker.wave.2.fill") }.help("Sound · \(HotKeys.symbol)M from any app")
       Menu {

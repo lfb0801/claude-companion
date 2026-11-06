@@ -49,9 +49,9 @@ final class StageView: NSView {
   override func mouseDown(with e: NSEvent) {
     let p = point(e); model.stage.mouse = p
     let t = model.tools
-    if t.stamp { model.stage.stamp(at: p); return }
     if t.cannon { model.stage.firing = true; return }
-    if t.whip { model.stage.crack(); return }
+    // A click with the whip in hand stamps with the back of the handle: it denies what's under it.
+    if t.whip { model.stage.stamp(at: p); return }
     model.clicked(at: p)
   }
   override func mouseUp(with e: NSEvent) { model.stage.firing = false }
@@ -60,10 +60,9 @@ final class StageView: NSView {
     switch e.keyCode {
     case 53: model.disarm()                                    // Esc
     case 49: if model.tools.cannon { model.stage.firing = true } // Space
-    case 36: model.stage.crack()                               // Return
     default:
       switch e.charactersIgnoringModifiers?.lowercased() {
-      case "w": model.toggle(\.whip); case "g": model.toggle(\.cannon); case "d": model.toggle(\.stamp)
+      case "w": model.toggle(\.whip); case "g": model.toggle(\.cannon)
       case "h": model.toggle(\.intern); case "m": model.toggle(\.muted)
       default: super.keyDown(with: e)
       }
@@ -153,7 +152,7 @@ final class OverlayController {
     let interactive = armed || over != nil
     if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }
     panel.wantsKey = armed
-    hover(armed ? nil : over)
+    hover(model.tools.inHand ? nil : over)
     view.needsDisplay = true
   }
 

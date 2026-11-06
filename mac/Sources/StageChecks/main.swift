@@ -166,7 +166,7 @@ check("cannon: a shot answers the nearest prompt with allow and is spent") {
 
 check("stamp: a click on a prompt denies it, empty ground marks NO TARGET, the cooldown gates repeats") {
   let r = Rig([session("a", ask("p1", "permission"))]); r.settle()
-  r.tools { $0.stamp = true }
+  r.tools { $0.whip = true }
   try expect(r.stage.stamp(at: Point(10, 10))); try expect(r.answers.isEmpty); try expect(r.stage.marks.first?.text == "NO TARGET")
   let b = r.stage.characters["a"]!.box!
   try expect(!r.stage.stamp(at: Point(b.x + 5, b.y + 5)), "cooling down")
@@ -229,6 +229,25 @@ check("pick finds the character or its prompt box under the pointer") {
   let a = r.stage.characters["a"]!
   try expect(r.stage.pick(Point(a.x, a.y)) === a)
   try expect(r.stage.pick(Point(a.box!.x + 3, a.box!.y + 3)) === a)
+}
+
+check("the whip: holding it still answers nothing; the handle's stamp denies only where you click") {
+  let r = Rig([session("a", ask("p1", "permission")), session("b", ask("p2", "permission"))]); r.settle()
+  let a = r.stage.characters["a"]!
+  r.stage.mouse = Point(a.x, a.y)
+  r.tools { $0.whip = true }
+  for _ in 0..<120 { r.stage.tick() }   // a still hand over a character: the lash hangs, no hit
+  try expect(r.answers.isEmpty, "\(r.answers)")
+  let b = r.stage.characters["b"]!.box!
+  try expect(r.stage.stamp(at: Point(b.x + 5, b.y + 5)))
+  try expect(r.answers.map { "\($0.session) \($0.decision) \($0.source)" } == ["b deny stamp"])
+  try expect(r.stage.characters["a"] != nil, "a is untouched")
+}
+
+check("only the cannon takes every click; the whip takes clicks only on a character, to stamp") {
+  var t = Tools(); t.whip = true
+  try expect(!t.takesMouse); try expect(t.inHand)
+  t.cannon = true; try expect(t.takesMouse)
 }
 
 print("\(passed) passed, \(failures) failed")
