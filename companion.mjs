@@ -81,9 +81,10 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
       case 'SessionStart':
         if (payload.source === 'startup' || payload.source === 'resume') emit({type: 'greet', id: s.id});
         break;
-      case 'UserPromptSubmit': clearIdle(s); break;
+      case 'UserPromptSubmit': clearIdle(s); s.toolsSinceAnswer = null; s.quiet = false; break;
       case 'PreToolUse':
         clearIdle(s);
+        if (s.toolsSinceAnswer != null) s.toolsSinceAnswer++;
         s.pre.push({tool: payload.tool_name, key: JSON.stringify(payload.tool_input), id: payload.tool_use_id});
         if (s.pre.length > 20) s.pre.shift();
         break;
@@ -91,9 +92,15 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
         if (s.prompt?.tool_use_id && s.prompt.tool_use_id === payload.tool_use_id) settle(s, 'terminal', 'allow');
         break;
       case 'Notification':
-        if (payload.notification_type === 'idle_prompt') idle(s, payload.message);
+        if (payload.notification_type === 'idle_prompt' && !s.quiet) idle(s, payload.message);
         break;
-      case 'Stop': idle(s, payload.last_assistant_message); break;
+      case 'Stop':
+        // You just answered on the companion and Claude only replied (no further work): it's
+        // telling you what you picked. Stay quiet until your next prompt.
+        if (s.toolsSinceAnswer === 0) { s.quiet = true; s.toolsSinceAnswer = null; break; }
+        s.toolsSinceAnswer = null;
+        idle(s, payload.last_assistant_message);
+        break;
       case 'SessionEnd':
         settle(s, 'ended', 'none');
         s.tail?.stop(); sessions.delete(s.id);
@@ -120,6 +127,8 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
     const s = sessions.get(id);
     const p = s?.prompt;
     if (!p || p.id !== prompt) return false;
+    // Answered here: if Claude now just replies and stops, that reply needn't come back to you.
+    if (p.kind !== 'input') s.toolsSinceAnswer = 0;
     const annotations = notes && Object.keys(notes).length ? Object.fromEntries(Object.entries(notes).map(([q, n]) => [q, {notes: String(n)}])) : undefined;
     if (p.ask) {
       const a = asks.get(p.ask);
