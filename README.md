@@ -59,6 +59,7 @@ These are accepted for a personal tool on your own machine. Read them before tur
 - **"Resume here" can run two processes on one session** if you ignore its warning.
 - **Transcript format.** The hover log and terminal-answer detection read Claude Code's transcript JSONL, which is undocumented and may change.
 - `assets/audio/little-friend.mp3` is a film clip. Making this repository public would need it removed from history.
+- `assets/audio/whip-summon.mp3` is the first 0.65 s of "cool hwhip" from myinstants.com, a user upload with no stated licence. It falls under the same caveat.
 
 ## Layout
 

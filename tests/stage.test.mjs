@@ -196,6 +196,23 @@ test('cannon entry plays the local cue once per activation and stops on mute', (
   } finally { globalThis.Audio = AudioClass; }
 });
 
+test('summoning the whip plays its clip once per summon, never while muted', () => {
+  const AudioClass = globalThis.Audio; const played = [];
+  globalThis.Audio = class { constructor(src) { this.src = src; } play() { played.push(this.src); return Promise.resolve(); } pause() {} };
+  try {
+    const r = rig();
+    assert.equal(r.t.whipCue.src, 'assets/audio/whip-summon.mp3');
+    r.dispatch({type: 'whip'});
+    assert.deepEqual(played, ['assets/audio/whip-summon.mp3']);
+    r.dispatch({type: 'crack'}); r.dispatch({type: 'cannon'});
+    assert.equal(played.filter(s => s.includes('whip')).length, 1, 'cracking or another tool does not replay it');
+    r.dispatch({type: 'whip'}); r.dispatch({type: 'mute'}); r.dispatch({type: 'whip'});
+    assert.equal(played.filter(s => s.includes('whip')).length, 1, 'muted');
+    r.dispatch({type: 'whip'}); r.dispatch({type: 'mute'}); r.dispatch({type: 'whip'});
+    assert.equal(played.filter(s => s.includes('whip')).length, 2);
+  } finally { globalThis.Audio = AudioClass; }
+});
+
 test('sounds are synthesized, honour mute, and each kind keeps a minimum gap', () => {
   let nodes = 0;
   const stub = () => new Proxy(function () {}, {get: (_, k) => (k === 'then' ? undefined : stub()), apply: () => stub()});
