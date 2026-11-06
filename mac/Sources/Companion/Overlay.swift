@@ -91,6 +91,13 @@ final class OverlayController {
     panel.orderFrontRegardless()
     relayout()
     listenForSnapshots()
+    model.onArmed = { [weak self] in
+      guard let self else { return }
+      self.panel.wantsKey = true
+      self.panel.ignoresMouseEvents = false
+      self.panel.makeKeyAndOrderFront(nil)
+      self.panel.makeFirstResponder(self.view)
+    }
     NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.fitScreen() } }
     timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.frame() } }
     RunLoop.main.add(timer!, forMode: .common)

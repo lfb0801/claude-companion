@@ -1,6 +1,7 @@
 // Claude Code Companion for macOS: a menu bar app with a desktop overlay.
 import AppKit
 import SwiftUI
+import Carbon.HIToolbox
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
   var model: AppModel!
@@ -13,9 +14,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       model = AppModel()
       overlay = OverlayController(model: model)
       toolbar = makeToolbar()
+      hotKeys = makeHotKeys()
+      refused = HotKeys.register(hotKeys)
       status = makeStatusItem()
       model.start()
     }
+  }
+
+  var hotKeys: [HotKey] = []
+  var refused: [HotKey] = []
+
+  /// ⌃⌥ + key, from any app.
+  @MainActor private func makeHotKeys() -> [HotKey] {
+    let m = model!
+    return [
+      HotKey(key: kVK_ANSI_W, letter: "W", title: "Whip") { m.toggle(\.whip) },
+      HotKey(key: kVK_ANSI_G, letter: "G", title: "Cannon") { m.toggle(\.cannon) },
+      HotKey(key: kVK_ANSI_D, letter: "D", title: "Stamp") { m.toggle(\.stamp) },
+      HotKey(key: kVK_ANSI_H, letter: "H", title: "Approval Intern") { m.toggle(\.intern) },
+      HotKey(key: kVK_ANSI_M, letter: "M", title: "Sound on/off") { m.toggle(\.muted) },
+      HotKey(key: kVK_ANSI_X, letter: "X", title: "Put tools away") { m.disarm() },
+      HotKey(key: kVK_ANSI_T, letter: "T", title: "Show toolbar") { [weak self] in self?.toolbar.orderFrontRegardless() },
+    ]
   }
 
   func applicationWillTerminate(_ n: Notification) { MainActor.assumeIsolated { model.server.stop() } }
@@ -40,16 +60,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     item.button?.image = NSImage(systemSymbolName: "figure.wave", accessibilityDescription: "Companion")
     let menu = NSMenu()
-    menu.addItem(withTitle: "Show toolbar", action: #selector(showToolbar), keyEquivalent: "").target = self
-    menu.addItem(withTitle: "Put tools away", action: #selector(disarm), keyEquivalent: "").target = self
+    // Every hotkey, with its shortcut shown; a refused one says so instead of firing.
+    for (i, k) in hotKeys.enumerated() {
+      let taken = refused.contains { $0.letter == k.letter }
+      let mi = NSMenuItem(title: taken ? "\(k.title) (\(HotKeys.symbol)\(k.letter) taken by another app)" : k.title, action: #selector(runHotKey(_:)), keyEquivalent: k.letter.lowercased())
+      mi.keyEquivalentModifierMask = [.control, .option]
+      mi.tag = i; mi.target = self
+      menu.addItem(mi)
+    }
     menu.addItem(.separator())
     menu.addItem(withTitle: "Quit Companion", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     item.menu = menu
     return item
   }
 
-  @objc func showToolbar() { toolbar.orderFrontRegardless() }
-  @objc func disarm() { MainActor.assumeIsolated { model.disarm() } }
+  @objc func runHotKey(_ sender: NSMenuItem) { hotKeys[sender.tag].action() }
 }
 
 let app = NSApplication.shared

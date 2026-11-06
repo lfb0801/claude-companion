@@ -49,7 +49,13 @@ final class AppModel: ObservableObject {
     var t = tools; t[keyPath: key].toggle(); set(t)
   }
   func disarm() { var t = tools; t.whip = false; t.cannon = false; t.stamp = false; set(t) }
-  private func set(_ t: Tools) { tools = t; audio.muted = t.muted; stage.setTools(t); if t.takesMouse { hideLog() } }
+  /// Called when a mouse tool gets armed, so the overlay can take the keyboard (Esc, Space, Return).
+  var onArmed: () -> Void = {}
+  private func set(_ t: Tools) {
+    let was = tools.takesMouse
+    tools = t; audio.muted = t.muted; stage.setTools(t)
+    if t.takesMouse { hideLog(); if !was { onArmed() } }
+  }
 
   /// A click on the stage with no tool armed: the prompt box opens its card.
   func clicked(at p: Point) {

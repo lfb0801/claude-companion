@@ -111,7 +111,7 @@ struct Toolbar: View {
       tool("G", "Cannon", \.cannon, help: "Hold the mouse to fire approvals")
       tool("D", "Stamp", \.stamp, help: "Click a prompt to deny it")
       tool("H", "Intern", \.intern, help: "Approves every prompt, in every session")
-      Button { model.toggle(\.muted) } label: { Image(systemName: model.tools.muted ? "speaker.slash.fill" : "speaker.wave.2.fill") }.help("Sound")
+      Button { model.toggle(\.muted) } label: { Image(systemName: model.tools.muted ? "speaker.slash.fill" : "speaker.wave.2.fill") }.help("Sound · \(HotKeys.symbol)M from any app")
       Menu {
         if model.sessions.all.isEmpty { Text("No sessions yet") }
         ForEach(model.sessions.all, id: \.id) { s in
@@ -129,6 +129,6 @@ struct Toolbar: View {
     let on = model.tools[keyPath: kp]
     return Button { model.toggle(kp) } label: { Text("\(key) \(name)").font(.system(.caption, design: .monospaced).bold()) }
       .tint(on ? lime : nil).buttonStyle(.borderedProminent).foregroundStyle(on ? Color.black : Color.primary)
-      .help(help)
+      .help("\(help) · \(HotKeys.symbol)\(key) from any app")
   }
 }
