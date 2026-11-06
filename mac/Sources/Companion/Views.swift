@@ -55,7 +55,7 @@ struct Toolbar: View {
       }.fixedSize()
       Button { model.startRemarc() } label: {
         Text(model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "Remarc …" : "Remarc ✓") : "Remarc ✗" } ?? "Remarc")
-      }.help(model.remarcResult?.message ?? "Start a Remarc session for the selected session; its comments arrive as prompts")
+      }.help(model.remarcResult?.message ?? "Link the main session to Remarc; its comments arrive as prompts and it routes them to nested sessions")
       Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8).help(model.connected ? "Connected to the companion server" : "Server offline, retrying")
     }
     .buttonStyle(.bordered).controlSize(.small)

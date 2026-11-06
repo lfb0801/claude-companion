@@ -79,9 +79,9 @@ final class AppModel: ObservableObject {
 
   /// From the toolbar: starts a Remarc session for the selected Claude session, so its comments reach that session as prompts.
   func startRemarc() {
-    guard let id = selectedSession, let s = sessions[id] else { remarcResult = (false, "Pick a session in the Sessions menu first"); return }
+    // The server only links main sessions (never worktree ones). With none picked it links every main session.
     remarcResult = (true, "Starting…")
-    server.post("remarc", ["session": id, "name": s.folder ?? "session"]) { [weak self] data, _ in
+    server.post("remarc", selectedSession.map { ["session": $0] } ?? [:]) { [weak self] data, _ in
       let j = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
       let ok = j?["ok"] as? Bool ?? false
       self?.remarcResult = (ok, (ok ? j?["text"] : j?["error"]) as? String ?? "The companion server did not answer")

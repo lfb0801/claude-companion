@@ -9,12 +9,13 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createCompanion} from './companion.mjs';
-import {createRemarcSession} from './remarc.mjs';
+import {createInbox} from './inbox.mjs';
+import {remarcSource} from './remarc.mjs';
 
 const types = {'.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.mp3': 'audio/mpeg'};
 const MAX_BODY = 4 << 20;
 
-export function createServer({companion = createCompanion(), root = path.dirname(fileURLToPath(import.meta.url)), port = 5173} = {}) {
+export function createServer({companion = createCompanion(), root = path.dirname(fileURLToPath(import.meta.url)), port = 5173, inbox = createInbox({source: remarcSource(), companion})} = {}) {
   // Allowed Host / Origin values follow the port actually bound (tests listen on port 0).
   const bound = () => server.address()?.port ?? port;
   const hostOk = h => h === `localhost:${bound()}` || h === `127.0.0.1:${bound()}`;
@@ -53,10 +54,17 @@ export function createServer({companion = createCompanion(), root = path.dirname
         return;
       }
       if (p === '/answer' && req.method === 'POST') return json(res, {ok: companion.answer(await body(req))});
+      // Arms the comment inbox: {session?}. One source session per MAIN session; worktree sessions are refused.
       if (p === '/remarc' && req.method === 'POST') {
-        const {session, name} = await body(req);
-        if (typeof session !== 'string' || !session) return json(res, {error: 'session required'}, 400);
-        return json(res, await createRemarcSession({name: String(name || 'session'), claudeSessionId: session}));
+        const {session} = await body(req);
+        return json(res, await inbox.arm(typeof session === 'string' && session ? session : undefined));
+      }
+      // The inbox mod (plugin/hooks/inbox.ts) asks for new comments; POST .../release hands undelivered ones back.
+      const box = p.match(/^\/inbox\/([^/]+)(\/release)?$/);
+      if (box) {
+        const id = decodeURIComponent(box[1]);
+        if (box[2] && req.method === 'POST') { inbox.release(id, (await body(req)).ids); return json(res, {ok: true}); }
+        return json(res, await inbox.next(id));
       }
       if (p.startsWith('/log/')) return json(res, {lines: companion.log(decodeURIComponent(p.slice(5)), Math.min(300, Number(url.searchParams.get('n')) || 80)) ?? []});
       if (p === '/ask' && req.method === 'POST') {
