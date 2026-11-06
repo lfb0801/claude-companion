@@ -32,6 +32,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 
-codesign --force --sign - "$APP" >/dev/null
+# Ad-hoc signing pins permissions (Accessibility) to this exact build, so every rebuild would lose them.
+# Pin them to the bundle identifier instead; the grant then survives rebuilds.
+codesign --force --sign - -r='designated => identifier "nl.lloydvanzaalen.claude-companion"' "$APP" >/dev/null
 echo "Built $(pwd)/$APP"
 if [ "${1:-}" = "--open" ]; then open "$APP"; fi
