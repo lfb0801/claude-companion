@@ -4,11 +4,21 @@
 // The main session fans the work out to its subagents, forks and worktree agents itself.
 // A source is {name, link({name, claudeSessionId}) -> {ok, link, text}, list(link) -> {ok, comments}};
 // a comment is {id, status: 'open'|'handedOff'|..., ref, request}.
-import {statSync} from 'node:fs';
+import {existsSync, statSync} from 'node:fs';
 import path from 'node:path';
 
 const actionable = s => s === 'open' || s === 'handedOff';
 const clip = (t, n) => (t.length <= n ? t : `${t.slice(0, n - 1)}…`);
+
+/** The checkout a session belongs to: the nearest folder up from cwd holding .git, else cwd itself.
+ *  A session's cwd drifts (cd into a subfolder), but its project, name and inbox must not. */
+export function projectRoot(cwd) {
+  if (!cwd) return cwd;
+  for (let dir = cwd; ; dir = path.dirname(dir)) {
+    if (existsSync(path.join(dir, '.git'))) return dir;
+    if (path.dirname(dir) === dir) return cwd;
+  }
+}
 
 /** False for a session working in a git worktree (its .git is a file, or it sits under .claude/worktrees). */
 export function isMainSession(cwd) {

@@ -5,6 +5,7 @@
 // PostToolUse, a rejected tool_result, or the hook connection closing), or nobody (session end).
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {projectRoot} from './inbox.mjs';
 import {parseLine, toolSummary, Tail} from './transcript.mjs';
 
 const LOG_KEEP = 300;
@@ -34,7 +35,8 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
   function session(payload, {create = true} = {}) {
     let s = sessions.get(payload.session_id);
     if (!s && create) {
-      s = {id: payload.session_id, cwd: payload.cwd || '', folder: path.basename(payload.cwd || '') || 'session', title: '', transcript: '', prompt: null, pre: [], log: []};
+      const cwd = projectRoot(payload.cwd || '');
+      s = {id: payload.session_id, cwd, folder: path.basename(cwd) || 'session', title: '', transcript: '', prompt: null, pre: [], log: []};
       sessions.set(s.id, s);
       emit({type: 'session', session: view(s)});
     }

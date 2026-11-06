@@ -86,3 +86,15 @@ test('batch mode holds comments until send, live delivers at once', async () => 
   inbox.setMode('live');
   assert.deepEqual((await inbox.next('main')).ids, ['b2']);
 });
+
+test('a session in a subfolder keeps its project root as cwd and name', async () => {
+  const {projectRoot} = await import('../inbox.mjs');
+  const root = mkdtempSync(path.join(tmpdir(), 'proj-'));
+  mkdirSync(path.join(root, '.git'));
+  mkdirSync(path.join(root, 'mac', 'Sources'), {recursive: true});
+  assert.equal(projectRoot(path.join(root, 'mac', 'Sources')), root);
+  assert.equal(projectRoot(root), root);
+  assert.equal(isMainSession(projectRoot(path.join(root, 'mac'))), true);
+  const loose = mkdtempSync(path.join(tmpdir(), 'loose-'));
+  assert.equal(projectRoot(loose), loose);
+});
