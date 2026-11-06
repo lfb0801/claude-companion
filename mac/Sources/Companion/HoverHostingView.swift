@@ -16,7 +16,16 @@ final class HoverHostingView<Content: View>: NSHostingView<Content> {
     let p = convert(e.locationInWindow, from: nil)
     model?.toolbarPointer = CGPoint(x: p.x, y: isFlipped ? p.y : bounds.height - p.y)
   }
-  override func mouseEntered(with e: NSEvent) { report(e) }
+  private var keys: Timer?
+  private func watchOption() {
+    keys?.invalidate()
+    // Modifier state is read straight from the system: no key-event permission, and it works while the pointer rests.
+    keys = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+      MainActor.assumeIsolated { self?.model?.optionHeld = NSEvent.modifierFlags.contains(.option) }
+    }
+    model?.optionHeld = NSEvent.modifierFlags.contains(.option)
+  }
+  override func mouseEntered(with e: NSEvent) { report(e); watchOption() }
   override func mouseMoved(with e: NSEvent) { report(e) }
-  override func mouseExited(with e: NSEvent) { model?.toolbarPointer = nil }
+  override func mouseExited(with e: NSEvent) { model?.toolbarPointer = nil; keys?.invalidate(); keys = nil; model?.optionHeld = false }
 }

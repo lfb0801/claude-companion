@@ -77,6 +77,8 @@ final class AppModel: ObservableObject {
   /// Outcome of the last "Remarc" click: nil = none yet, else (ok, message).
   /// Pointer over the toolbar in its own SwiftUI coordinates; nil when outside.
   @Published var captionShown = false
+  /// ⌥ is down while the pointer is over the toolbar; only then does the hover caption show.
+  @Published var optionHeld = false
   var hideToolbar: (() -> Void)?
   @Published var toolbarPointer: CGPoint?
   @Published var remarcResult: (ok: Bool, message: String)?

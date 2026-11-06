@@ -40,13 +40,13 @@ struct Toolbar: View {
   @State private var frames: [String: HintFrame] = [:]
   /// What the pointer is over, from the pointer position the hosting view reports (see HoverHostingView).
   private var hint: (name: String, text: String)? {
-    guard let p = model.toolbarPointer, let h = frames.first(where: { $0.value.rect.insetBy(dx: -3, dy: -3).contains(p) }) else { return nil }
+    guard model.optionHeld, let p = model.toolbarPointer, let h = frames.first(where: { $0.value.rect.insetBy(dx: -3, dy: -3).contains(p) }) else { return nil }
     return (h.key, h.value.text)
   }
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       buttons
-      // Only while something is hovered; the panel grows and shrinks with it (see AppDelegate.keepToolbarTop).
+      // Only while something is hovered with ⌥ held; the panel grows and shrinks with it (see AppDelegate.keepToolbarTop).
       if let h = hint {
         Color.clear.frame(height: 30).overlay(alignment: .topLeading) {
           (Text(h.name).bold().foregroundColor(lime) + Text("  " + h.text).foregroundColor(.secondary)).font(.system(size: 11)).lineLimit(2)
