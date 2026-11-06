@@ -9,6 +9,7 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createCompanion} from './companion.mjs';
+import {createRemarcSession} from './remarc.mjs';
 
 const types = {'.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.mp3': 'audio/mpeg'};
 const MAX_BODY = 4 << 20;
@@ -54,6 +55,11 @@ export function createServer({companion = createCompanion(), launcher = null, ro
         return;
       }
       if (p === '/answer' && req.method === 'POST') return json(res, {ok: companion.answer(await body(req))});
+      if (p === '/remarc' && req.method === 'POST') {
+        const {session, name} = await body(req);
+        if (typeof session !== 'string' || !session) return json(res, {error: 'session required'}, 400);
+        return json(res, await createRemarcSession({name: String(name || 'session'), claudeSessionId: session}));
+      }
       if (p.startsWith('/log/')) return json(res, {lines: companion.log(decodeURIComponent(p.slice(5)), Math.min(300, Number(url.searchParams.get('n')) || 80)) ?? []});
       if (p === '/ask' && req.method === 'POST') {
         const r = companion.ask(await body(req));

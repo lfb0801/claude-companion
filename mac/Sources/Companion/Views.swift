@@ -53,6 +53,9 @@ struct Toolbar: View {
         let picked = model.sessions.all.first { $0.id == model.selectedSession }
         Text(picked.map { "✓ \($0.folder ?? "session")" } ?? "Sessions \(model.sessions.all.count)")
       }.fixedSize()
+      Button { model.startRemarc() } label: {
+        Text(model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "Remarc …" : "Remarc ✓") : "Remarc ✗" } ?? "Remarc")
+      }.help(model.remarcResult?.message ?? "Start a Remarc session for the selected session; its comments arrive as prompts")
       Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8).help(model.connected ? "Connected to the companion server" : "Server offline, retrying")
     }
     .buttonStyle(.bordered).controlSize(.small)

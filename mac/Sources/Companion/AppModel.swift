@@ -67,10 +67,25 @@ final class AppModel: ObservableObject {
 
   /// From the sessions menu: deal that session's cards (it walks back on stage if it had left).
   func open(session id: String, prompt: Prompt?) {
+    if selectedSession != id { remarcResult = nil }
     selectedSession = id
     guard let prompt else { return }
     if stage.characters[id] == nil { stage.recall(prompt: prompt.id); stage.sync(sessions.all) }
     if let c = stage.characters[id] { stage.openSpread(c) }
+  }
+
+  /// Outcome of the last "Remarc" click: nil = none yet, else (ok, message).
+  @Published var remarcResult: (ok: Bool, message: String)?
+
+  /// From the toolbar: starts a Remarc session for the selected Claude session, so its comments reach that session as prompts.
+  func startRemarc() {
+    guard let id = selectedSession, let s = sessions[id] else { remarcResult = (false, "Pick a session in the Sessions menu first"); return }
+    remarcResult = (true, "Starting…")
+    server.post("remarc", ["session": id, "name": s.folder ?? "session"]) { [weak self] data, _ in
+      let j = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+      let ok = j?["ok"] as? Bool ?? false
+      self?.remarcResult = (ok, (ok ? j?["text"] : j?["error"]) as? String ?? "The companion server did not answer")
+    }
   }
 
   /// Maps a stage box to screen coordinates (set by the overlay).
