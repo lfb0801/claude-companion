@@ -1,0 +1,26 @@
+/* Phase 4: launch panel and terminal drawer. Uses the tokens from style.css (--lime, --muted, --border). */
+.cc-launch{position:fixed;top:56px;left:12px;z-index:20;width:min(420px,calc(100vw - 24px));display:flex;flex-direction:column;gap:10px;padding:14px;background:#15160fee;border:1px solid var(--border,#32352a);border-radius:8px;box-shadow:0 12px 40px #0009;font-size:13px}
+.cc-launch[hidden],.cc-drawer[hidden],.cc-launch [hidden]{display:none}
+.cc-launch header{display:flex;align-items:center;justify-content:space-between}
+.cc-launch label{display:flex;flex-direction:column;gap:4px;color:var(--muted,#97998a)}
+.cc-launch select,.cc-launch input,.cc-launch textarea{font:inherit;font-size:13px;color:#eeeedd;background:#0d0e0b;border:1px solid var(--border,#32352a);border-radius:6px;padding:7px 8px;width:100%}
+.cc-launch textarea{resize:vertical;min-height:56px;font-family:inherit}
+.cc-launch select:focus,.cc-launch input:focus,.cc-launch textarea:focus{outline:none;border-color:var(--lime,#d7ff62)}
+.cc-launch .cc-opt{opacity:.7}
+.cc-launch .cc-x{padding:2px 9px;font-size:16px;line-height:1}
+.cc-launch .cc-row{display:flex;align-items:center;gap:10px}
+.cc-launch .cc-go{background:var(--lime,#d7ff62);color:#15170e;border-color:var(--lime,#d7ff62);font-weight:bold}
+.cc-launch .cc-msg{color:var(--muted,#97998a);min-width:0;overflow-wrap:anywhere}
+.cc-launch .cc-msg.cc-err{color:#ff8a6a}
+.cc-launch .cc-sub{color:var(--muted,#97998a);margin-bottom:4px}
+.cc-launch .cc-recent ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto}
+.cc-launch .cc-recent li{display:flex;align-items:center;gap:8px}
+.cc-launch .cc-recent li span{flex:1;color:var(--muted,#97998a)}
+.cc-launch .cc-recent button{padding:3px 8px;font-size:12px}
+.cc-drawer{position:fixed;left:0;right:0;bottom:0;z-index:15;height:min(42vh,420px);display:flex;flex-direction:column;background:#0b0c09f5;border-top:1px solid var(--border,#32352a);box-shadow:0 -10px 30px #0008}
+.cc-drawer-head{display:flex;align-items:center;gap:12px;padding:6px 12px;border-bottom:1px solid var(--border,#32352a);font-size:13px;min-width:0}
+.cc-drawer-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cc-drawer-cmd{flex:1;color:var(--muted,#97998a);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:all;min-width:0}
+.cc-drawer-close{padding:3px 10px;font-size:12px}
+.cc-drawer-term{flex:1;min-height:0;padding:4px 0 0 8px}
+.cc-drawer-term .xterm{height:100%}
