@@ -119,7 +119,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   @MainActor private func makeStatusItem() -> NSStatusItem {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    item.button?.image = NSImage(systemSymbolName: "figure.wave", accessibilityDescription: "Companion")
+    // The companion itself, in colour, sized for the menu bar; falls back to a symbol if the art is missing.
+    if let url = resource("happy-0", "png"), let art = NSImage(contentsOf: url) {
+      art.size = NSSize(width: 22, height: 22 * art.size.height / art.size.width)
+      art.accessibilityDescription = "Claude Companion"
+      item.button?.image = art
+    } else {
+      item.button?.image = NSImage(systemSymbolName: "figure.wave", accessibilityDescription: "Claude Companion")
+    }
     let menu = NSMenu()
     // Every hotkey, with its shortcut shown; a refused one says so instead of firing.
     for (i, k) in hotKeys.enumerated() {
