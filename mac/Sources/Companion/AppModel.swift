@@ -76,6 +76,8 @@ final class AppModel: ObservableObject {
 
   /// Outcome of the last "Remarc" click: nil = none yet, else (ok, message).
   /// Pointer over the toolbar in its own SwiftUI coordinates; nil when outside.
+  @Published var captionShown = false
+  var hideToolbar: (() -> Void)?
   @Published var toolbarPointer: CGPoint?
   @Published var remarcResult: (ok: Bool, message: String)?
 

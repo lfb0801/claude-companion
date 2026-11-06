@@ -46,20 +46,23 @@ struct Toolbar: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       buttons
-      Color.clear.frame(height: 30).overlay(alignment: .topLeading) {
-        if let h = hint {
+      // Only while something is hovered; the panel grows and shrinks with it (see AppDelegate.keepToolbarTop).
+      if let h = hint {
+        Color.clear.frame(height: 30).overlay(alignment: .topLeading) {
           (Text(h.name).bold().foregroundColor(lime) + Text("  " + h.text).foregroundColor(.secondary)).font(.system(size: 11)).lineLimit(2)
-        } else {
-          Text("Hover a button to see what it does").font(.system(size: 11)).foregroundStyle(.tertiary)
         }
       }
     }
+    .onChange(of: hint?.name) { _, name in model.captionShown = name != nil }
     .padding(8).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 10))
     .coordinateSpace(name: "toolbar")
     .onPreferenceChange(HintFrames.self) { frames = $0 }
   }
   private var buttons: some View {
     HStack(spacing: 6) {
+      // Not a button: a press here falls through to the panel, which drags by its background.
+      Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary).padding(.horizontal, 2)
+        .hint("Move", "Drag here, or anywhere on the bar's background, to move the toolbar")
       tool("W", "lasso", "Whip", \.whip, help: "Swing it to approve what the lash hits; click a prompt to stamp it with the handle (deny)")
       tool("G", "scope", "Cannon", \.cannon, help: "Hold the mouse to fire approvals")
       tool("D", "square.and.pencil", "Stamp", \.stamp, help: "Click a prompt or its cards to request changes (deny)")
@@ -84,6 +87,8 @@ struct Toolbar: View {
       Button { model.startRemarc() } label: {
         Image(systemName: model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "ellipsis.bubble" : "checkmark.bubble") : "exclamationmark.bubble" } ?? "text.bubble")
       }.hint("Remarc link", model.remarcResult?.message ?? "Link the main session so Remarc comments arrive as prompts and get routed to nested sessions")
+      Button { model.hideToolbar?() } label: { Image(systemName: "eye.slash") }
+        .hint("Hide", "Hide the toolbar · \(HotKeys.symbol)T or the menu bar icon brings it back")
       Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8)
         .hint("Connection", model.connected ? "Connected to the companion server" : "Server offline, retrying")
     }
