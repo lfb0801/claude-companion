@@ -50,6 +50,7 @@ final class Server {
     var body: [String: Any] = ["session": a.session, "prompt": a.prompt, "decision": a.decision, "source": a.source]
     if let answers = a.answers { body["answers"] = answers }
     if let notes = a.notes { body["notes"] = notes }
+    if let message = a.message { body["message"] = message }
     post("answer", body)
   }
 

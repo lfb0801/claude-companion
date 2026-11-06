@@ -119,6 +119,23 @@ test('a tool that approves a question without picking answers chooses the first 
   assert.deepEqual(reply.hookSpecificOutput.decision.updatedInput.answers, {'Which fruit do you prefer?': 'Apple'});
 });
 
+test('a deny with a note tells Claude why; a plan sent back says what to change', async () => {
+  const {c, promptOf} = watched();
+  const L = hooks('session-a');
+  const sid = L[0].session_id;
+  let reply;
+  c.ingest(L[8]).then(r => { reply = r; });
+  await tick();
+  c.answer({session: sid, prompt: promptOf(sid).id, decision: 'deny', message: '  use the existing fixture instead  '});
+  await tick();
+  assert.equal(reply.hookSpecificOutput.decision.message, 'Denied from the companion. The user says: use the existing fixture instead');
+  c.ingest(L[34]).then(r => { reply = r; });
+  await tick();
+  c.answer({session: sid, prompt: promptOf(sid).id, decision: 'deny', message: 'split step 2 in two'});
+  await tick();
+  assert.equal(reply.hookSpecificOutput.decision.message, 'The user wants changes to the plan: split step 2 in two');
+});
+
 test('the waiting-for-you text drops Markdown markup', () => {
   assert.equal(plain('You answered **SQLite** for the `db`. See [docs](https://x).\n## Next\n- item'), 'You answered SQLite for the db. See docs.\nNext\nitem');
 });

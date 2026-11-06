@@ -1,82 +1,8 @@
-// Native panels: the prompt card, the hover log, and the floating toolbar.
+// Native panels: the hover log and the floating toolbar. (Prompts are answered with cards on the overlay.)
 import SwiftUI
 import StageCore
 
-private let ink = Color(nsColor: .ink), cream = Color(nsColor: .cream), lime = Color(nsColor: .lime)
-
-/// Click a prompt (no tool armed): allow / deny, pick answers, or approve a plan.
-struct PromptCard: View {
-  let prompt: Prompt
-  let folder: String
-  let title: String
-  let answer: (_ decision: String, _ answers: [String: String]?) -> Void
-  let cancel: () -> Void
-  @State private var picked: [Int: Set<String>] = [:]
-  @State private var other: [Int: String] = [:]
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Text("\(folder)\(title.isEmpty ? "" : " · \(title)")".uppercased()).font(.system(.caption, design: .monospaced).bold()).foregroundStyle(Color(nsColor: NSColor(hex: 0x9a4d17)))
-      Text(prompt.text).font(.system(.title3, design: .monospaced).bold()).foregroundStyle(ink).fixedSize(horizontal: false, vertical: true)
-      if let d = prompt.detail, !d.isEmpty, prompt.kind != "question" { Text(d).font(.system(.body, design: .monospaced)).foregroundStyle(ink.opacity(0.7)) }
-      switch prompt.kind {
-      case "question": questions
-      case "plan": ScrollView { Text(prompt.plan ?? "").font(.system(.callout, design: .monospaced)).foregroundStyle(ink).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(10) }
-          .frame(maxHeight: 360).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 8))
-      default: EmptyView()
-      }
-      HStack {
-        Spacer()
-        switch prompt.kind {
-        case "question": Button("Decline") { answer("deny", nil) }; Button("Answer") { answer("allow", collected()) }.keyboardShortcut(.defaultAction)
-        case "plan": Button("Keep planning") { answer("deny", nil) }; Button("Approve plan") { answer("allow", nil) }.keyboardShortcut(.defaultAction)
-        case "input": Button("Dismiss") { answer("allow", nil) }.keyboardShortcut(.defaultAction)
-        default: Button("Deny") { answer("deny", nil) }; Button("Allow") { answer("allow", nil) }.keyboardShortcut(.defaultAction)
-        }
-      }.padding(.top, 4)
-    }
-    .padding(22).frame(width: 560).background(cream)
-    .onExitCommand { cancel() }
-  }
-
-  private var questions: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      ForEach(Array((prompt.questions ?? []).enumerated()), id: \.offset) { i, q in
-        VStack(alignment: .leading, spacing: 6) {
-          Text("\(q.header.map { "\($0) · " } ?? "")\(q.question)").font(.system(.body, design: .monospaced).bold()).foregroundStyle(ink)
-          ForEach(q.options, id: \.label) { o in
-            Button { toggle(i, o.label, multi: q.multiSelect == true) } label: {
-              HStack(alignment: .top) {
-                Image(systemName: selected(i, o.label) ? (q.multiSelect == true ? "checkmark.square.fill" : "largecircle.fill.circle") : (q.multiSelect == true ? "square" : "circle"))
-                VStack(alignment: .leading) { Text(o.label).bold(); if let d = o.description, !d.isEmpty { Text(d).font(.caption).foregroundStyle(ink.opacity(0.7)) } }
-              }.foregroundStyle(ink).frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 6).padding(.horizontal, 8)
-                // The picked option is unmistakable: filled amber row with a dark border.
-                .background(RoundedRectangle(cornerRadius: 6).fill(selected(i, o.label) ? Color(nsColor: NSColor(hex: 0xffc574)) : Color.clear))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected(i, o.label) ? ink : ink.opacity(0.15), lineWidth: selected(i, o.label) ? 2 : 1))
-                .contentShape(Rectangle())
-            }.buttonStyle(.plain)
-          }
-          TextField("Other answer", text: Binding(get: { other[i] ?? "" }, set: { other[i] = $0 })).textFieldStyle(.roundedBorder)
-        }.padding(10).overlay(RoundedRectangle(cornerRadius: 8).stroke(ink.opacity(0.2)))
-      }
-    }
-    .onAppear { for (i, q) in (prompt.questions ?? []).enumerated() where q.multiSelect != true { if let f = q.options.first { picked[i] = [f.label] } } }
-  }
-  private func selected(_ i: Int, _ l: String) -> Bool { picked[i]?.contains(l) == true }
-  private func toggle(_ i: Int, _ l: String, multi: Bool) {
-    if multi { var s = picked[i] ?? []; if s.contains(l) { s.remove(l) } else { s.insert(l) }; picked[i] = s } else { picked[i] = [l] }
-  }
-  /// Typed "other" text wins over the picked options for that question.
-  private func collected() -> [String: String] {
-    var out: [String: String] = [:]
-    for (i, q) in (prompt.questions ?? []).enumerated() {
-      let typed = (other[i] ?? "").trimmingCharacters(in: .whitespaces)
-      out[q.question] = typed.isEmpty ? q.options.map(\.label).filter { selected(i, $0) }.joined(separator: ", ") : typed
-    }
-    return out
-  }
-}
+private let lime = Color(nsColor: .lime)
 
 /// Recent transcript lines beside a hovered character; follows new lines.
 struct LogPanel: View {

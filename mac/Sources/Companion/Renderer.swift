@@ -263,12 +263,28 @@ struct Renderer {
   // MARK: answer cards
 
   func spread(_ s: Spread) {
-    let q = s.question, age = Double(stage.time - s.dealtAt)
+    let age = Double(stage.time - s.dealtAt)
     let hover = s.card(at: stage.mouse)
-    // The question above the cards, on a dark plate so it reads over any desktop.
-    let head = "\(s.questions.count > 1 ? "\(s.index + 1)/\(s.questions.count) · " : "")\(q.header.map { "\($0.uppercased()) · " } ?? "")\(q.question)"
-    let hint = s.multi ? "click to toggle · Done to send · right-click: pick with a note · Esc: put away" : "click to pick · right-click: pick with a note · Esc: put away"
-    let left = s.cards.map(\.box.x).min() ?? 0, right = s.cards.map { $0.box.x + $0.box.w }.max() ?? 0
+    // What's being asked, above the cards on a dark plate so it reads over any desktop.
+    let head: String, hint: String
+    switch s.kind {
+    case "question":
+      let q = s.question
+      head = "\(s.questions.count > 1 ? "\(s.index + 1)/\(s.questions.count) · " : "")\(q?.header.map { "\($0.uppercased()) · " } ?? "")\(q?.question ?? s.title)"
+      hint = s.multi ? "click to toggle · Done to send · right-click: pick with a note · Esc: put away" : "click to pick · right-click: pick with a note · Esc: put away"
+    case "plan":
+      head = "PLAN · \(s.title)"
+      hint = "scroll the plan · Approve, or right-click Keep planning to say what to change · Esc: put away"
+    case "input":
+      head = "WAITING FOR YOU · \(s.title)"
+      hint = "Dismiss puts it away · Esc: leave it"
+    default:
+      head = s.title + (s.detail.isEmpty ? "" : "  —  \(s.detail)")
+      hint = "Allow or Deny · right-click Deny to tell Claude why · Esc: put away"
+    }
+    if let sheet = s.sheet { planSheet(s, sheet) }
+    let xs = s.cards.map(\.box.x) + (s.sheet.map { [$0.x] } ?? []), xe = s.cards.map { $0.box.x + $0.box.w } + (s.sheet.map { [$0.x + $0.w] } ?? [])
+    let left = xs.min() ?? 0, right = xe.max() ?? 0
     let plateW = max(right - left, 520.0), plateX = (left + right) / 2 - plateW / 2
     ctx.setFillColor(NSColor(hex: 0x11120f, alpha: 0.85).cgColor)
     ctx.addPath(CGPath(roundedRect: CGRect(x: plateX, y: s.bannerY - 44, width: plateW, height: 50), cornerWidth: 8, cornerHeight: 8, transform: nil)); ctx.fillPath()
@@ -291,12 +307,14 @@ struct Renderer {
       ctx.saveGState()
       ctx.setShadow(offset: CGSize(width: 0, height: lifted ? 14 : 8), blur: lifted ? 22 : 14, color: NSColor(white: 0, alpha: 0.55).cgColor)
       let isDone = c.kind == .done
-      ctx.setFillColor(NSColor(hex: picked ? 0xffc574 : isDone ? 0xd7ff62 : 0xfff5e2).cgColor)
+      // Allow-type cards are lime, Deny-type are a soft red, options cream.
+      let fill: UInt32 = picked ? 0xffc574 : isDone || c.kind == .allow ? 0xe4ff9a : c.kind == .deny ? 0xffd0c5 : 0xfff5e2
+      ctx.setFillColor(NSColor(hex: fill).cgColor)
       ctx.addPath(path); ctx.fillPath()
       ctx.restoreGState()
       ctx.setStrokeColor((lifted || picked ? NSColor.ink : NSColor(hex: 0x6789ad)).cgColor); ctx.setLineWidth(lifted || picked ? 4 : 3)
       ctx.addPath(path); ctx.strokePath()
-      if !isDone { ctx.setFillColor(NSColor(hex: 0x6789ad).cgColor); ctx.fill(CGRect(x: 0, y: 14, width: 5, height: b.h - 28)) }
+      if case .option = c.kind { ctx.setFillColor(NSColor(hex: 0x6789ad).cgColor); ctx.fill(CGRect(x: 0, y: 14, width: 5, height: b.h - 28)) }
       text(c.title, at: CGPoint(x: 16, y: 30), size: 17, bold: true, color: .ink, maxWidth: b.w - 30)
       // Description, up to three wrapped lines.
       let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular), attrs: [NSAttributedString.Key: Any] = [.font: font]
@@ -310,6 +328,43 @@ struct Renderer {
       if picked { text("✓", at: CGPoint(x: b.w - 18, y: 30), size: 20, bold: true, color: .ink, align: .right) }
       ctx.restoreGState()
     }
+  }
+
+  /// The plan on a sheet of paper: Markdown headings bold, wrapped, scrolled by the mouse wheel.
+  private func planSheet(_ s: Spread, _ b: Box) {
+    let t = min(1, Double(stage.time - s.dealtAt) / 10)
+    ctx.saveGState(); ctx.setAlpha(t)
+    let rect = CGRect(x: b.x, y: b.y + (1 - t) * 30, width: b.w, height: b.h), path = CGPath(roundedRect: rect, cornerWidth: 10, cornerHeight: 10, transform: nil)
+    ctx.saveGState(); ctx.setShadow(offset: CGSize(width: 0, height: 10), blur: 20, color: NSColor(white: 0, alpha: 0.55).cgColor)
+    ctx.setFillColor(NSColor(hex: 0xfffdf6).cgColor); ctx.addPath(path); ctx.fillPath(); ctx.restoreGState()
+    ctx.setStrokeColor(NSColor(hex: 0x8a6bc4).cgColor); ctx.setLineWidth(3); ctx.addPath(path); ctx.strokePath()
+    // Wrap every line of the plan to the sheet's width.
+    let body = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), bold = NSFont.monospacedSystemFont(ofSize: 13, weight: .bold)
+    var rows: [(String, Bool)] = []
+    for raw in s.plan.components(separatedBy: "\n") {
+      let heading = raw.hasPrefix("#")
+      let text = heading ? raw.drop(while: { $0 == "#" }).trimmingCharacters(in: .whitespaces) : raw.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
+      let attrs: [NSAttributedString.Key: Any] = [.font: heading ? bold : body]
+      var line = ""
+      for word in text.split(separator: " ", omittingEmptySubsequences: false) {
+        let next = line.isEmpty ? String(word) : line + " " + word
+        if (next as NSString).size(withAttributes: attrs).width > b.w - 36 && !line.isEmpty { rows.append((line, heading)); line = String(word) } else { line = next }
+      }
+      rows.append((line, heading))
+    }
+    let lineH = 17.0, visible = Int((b.h - 24) / lineH), maxScroll = max(0, rows.count - visible)
+    let first = min(s.sheetScroll, maxScroll)
+    ctx.saveGState(); ctx.clip(to: rect.insetBy(dx: 4, dy: 6))
+    for (k, row) in rows.dropFirst(first).prefix(visible).enumerated() {
+      text(row.0, at: CGPoint(x: b.x + 18, y: b.y + (1 - t) * 30 + 26 + Double(k) * lineH), size: row.1 ? 13 : 12, bold: row.1, color: row.1 ? NSColor(hex: 0x5a3f8f) : .ink)
+    }
+    ctx.restoreGState()
+    // Scroll position, when there's more than fits.
+    if maxScroll > 0 {
+      let track = b.h - 20, thumb = max(24, track * Double(visible) / Double(rows.count)), y = b.y + 10 + (track - thumb) * Double(first) / Double(maxScroll)
+      ctx.setFillColor(NSColor(hex: 0x8a6bc4, alpha: 0.5).cgColor); ctx.fill(CGRect(x: b.x + b.w - 10, y: y, width: 4, height: thumb))
+    }
+    ctx.restoreGState()
   }
 
   /// A card flipping over (a squash through its edge), then its back: the note being written.

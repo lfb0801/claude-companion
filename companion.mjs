@@ -115,7 +115,8 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
 
   // The companion answers. decision: 'allow' | 'deny'; answers: {question: label} for questions;
   // notes: {question: text} added to a picked answer, passed on as AskUserQuestion annotations.
-  function answer({session: id, prompt, decision, answers, notes, source = 'companion'}) {
+  // message: why you denied, or what should change in a plan; Claude reads it as the denial reason.
+  function answer({session: id, prompt, decision, answers, notes, message: why, source = 'companion'}) {
     const s = sessions.get(id);
     const p = s?.prompt;
     if (!p || p.id !== prompt) return false;
@@ -132,7 +133,10 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
       const updatedInput = p.kind === 'question' ? {...p.input, answers: answers || firstOptions(p.questions), ...(annotations ? {annotations} : {})} : undefined;
       reply = {hookSpecificOutput: {hookEventName: 'PermissionRequest', decision: {behavior: 'allow', ...(updatedInput ? {updatedInput} : {})}}};
     } else {
-      const message = p.kind === 'question' ? 'The user declined to answer from the companion.' : p.kind === 'plan' ? 'The user rejected the plan from the companion. Ask what to change.' : 'Denied from the companion.';
+      const note = typeof why === 'string' && why.trim() ? why.trim().slice(0, 2000) : '';
+      const message = p.kind === 'question' ? 'The user declined to answer from the companion.'
+        : p.kind === 'plan' ? (note ? `The user wants changes to the plan: ${note}` : 'The user rejected the plan from the companion. Ask what to change.')
+        : note ? `Denied from the companion. The user says: ${note}` : 'Denied from the companion.';
       reply = {hookSpecificOutput: {hookEventName: 'PermissionRequest', decision: {behavior: 'deny', message}}};
     }
     return settle(s, source, decision, reply);

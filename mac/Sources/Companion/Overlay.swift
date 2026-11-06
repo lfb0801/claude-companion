@@ -62,6 +62,12 @@ final class StageView: NSView {
     model.clicked(at: p)
   }
   override func mouseUp(with e: NSEvent) { model.stage.firing = false }
+  /// The mouse wheel scrolls a plan sheet.
+  override func scrollWheel(with e: NSEvent) {
+    guard let sheet = model.stage.spread?.sheet, sheet.contains(point(e)) else { return }
+    let lines = Int((-e.scrollingDeltaY / (e.hasPreciseScrollingDeltas ? 17 : 1)).rounded())
+    if lines != 0 { model.stage.scrollSheet(lines: lines) }
+  }
   override func rightMouseDown(with e: NSEvent) {
     let p = point(e)
     // Right-click a card: it flips over and you write a note on its back.
@@ -194,7 +200,7 @@ final class OverlayController {
     panel.wantsKey = armed || cards
     if cards && !panel.isKeyWindow { panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(view) }
     // No hover log while a tool is in hand or a prompt card is open (it would cover the card).
-    hover(model.tools.inHand || model.cardOpen || stage.spread != nil ? nil : over)
+    hover(model.tools.inHand || stage.spread != nil ? nil : over)
     view.needsDisplay = true
   }
 

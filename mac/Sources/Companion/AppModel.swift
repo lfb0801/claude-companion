@@ -13,7 +13,6 @@ final class AppModel: ObservableObject {
   let server = Server()
   let audio = Audio()
   private(set) var logShownFor: String?
-  private var card: NSPanel?, cardFor: (session: String, prompt: String)?
   private var logPanel: NSPanel?
 
   init() {
@@ -33,7 +32,6 @@ final class AppModel: ObservableObject {
     default: break
     }
     stage.sync(sessions.all)
-    if let c = cardFor, sessions[c.session]?.prompt?.id != c.prompt { closeCard() }
   }
 
   /// An answer clears the prompt here at once, then goes to the server, which replies to Claude.
@@ -58,54 +56,21 @@ final class AppModel: ObservableObject {
     if t.takesMouse && !was { onArmed() }
   }
 
-  /// A click on the stage with no tool armed: a question deals its answer cards; any other prompt opens its card.
+  /// A click on a prompt box with no tool armed deals its cards on the stage.
   func clicked(at p: Point) {
-    guard let c = stage.pick(p), let prompt = c.prompt, !c.answered else { return }
+    guard let c = stage.pick(p), c.prompt != nil, !c.answered else { return }
     hideLog()
-    if prompt.kind == "question" { stage.openSpread(c); return }
-    openCard(session: c.id, prompt: prompt)
+    stage.openSpread(c)
   }
 
-  /// From the sessions menu: deal a question's cards, or open another prompt's card.
+  /// From the sessions menu: deal that session's cards (it walks back on stage if it had left).
   func open(session id: String, prompt: Prompt) {
-    if prompt.kind == "question", let c = stage.characters[id], stage.openSpread(c) { return }
-    openCard(session: id, prompt: prompt)
+    if stage.characters[id] == nil { stage.recall(prompt: prompt.id); stage.sync(sessions.all) }
+    if let c = stage.characters[id] { stage.openSpread(c) }
   }
 
   /// Maps a stage box to screen coordinates (set by the overlay).
   var screenRect: (Box) -> NSRect = { _ in .zero }
-
-  // MARK: prompt card
-
-  func openCard(session id: String, prompt: Prompt) {
-    closeCard()
-    let s = sessions[id]
-    let view = PromptCard(prompt: prompt, folder: s?.folder ?? "session", title: s?.title ?? "") { [weak self] decision, answers in
-      guard let self else { return }
-      if let c = self.stage.characters[id], !c.answered { c.answered = true; c.decision = decision }
-      self.answer(Answer(session: id, prompt: prompt.id, decision: decision, source: "card", answers: answers))
-      self.closeCard()
-    } cancel: { [weak self] in self?.closeCard() }
-    // Sized once from the card's content. No full-size content view and no automatic resizing:
-    // together those made SwiftUI and the window resize each other until AppKit aborted the app.
-    let host = NSHostingView(rootView: view)
-    let size = host.fittingSize
-    let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-    panel.title = "\(s?.folder ?? "Session") needs you"
-    panel.isReleasedWhenClosed = false
-    // Above the overlay (.statusBar) and the toolbar, or they would swallow the card's clicks.
-    panel.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
-    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-    host.frame = NSRect(origin: .zero, size: size)
-    panel.contentView = host
-    panel.center()
-    hideLog()
-    NSApp.activate(ignoringOtherApps: true)
-    panel.makeKeyAndOrderFront(nil)
-    card = panel; cardFor = (id, prompt.id)
-  }
-  func closeCard() { card?.close(); card = nil; cardFor = nil }
-  var cardOpen: Bool { card != nil }
 
   // MARK: hover log
 

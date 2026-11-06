@@ -325,9 +325,39 @@ check("cards: multi-select toggles cards and sends on Done") {
   try expect(r.answers.first?.answers == ["Which extras?": "Onion, Olives"])
 }
 
-check("cards: only questions deal cards, and they go away when the question is answered elsewhere") {
+check("cards: a permission deals Allow and Deny; Deny takes a note that becomes the reason") {
+  let r = Rig([session("b", ask("p2", "permission"))]); r.settle()
+  try expect(r.stage.openSpread(r.stage.characters["b"]!))
+  try expect(r.stage.spread?.cards.map(\.title) == ["Allow", "Deny"])
+  try expect(r.stage.spread?.cards.map(\.takesNote) == [false, true])
+  r.stage.beginNote(1); r.stage.typeNote("use the fixture instead"); r.stage.submitNote()
+  try expect(r.answers.map { "\($0.decision) \($0.source) \($0.message ?? "-") \($0.answers == nil)" } == ["deny cards use the fixture instead true"], "\(r.answers)")
+  let r2 = Rig([session("b", ask("p3", "permission"))]); r2.settle()
+  r2.stage.openSpread(r2.stage.characters["b"]!); r2.stage.beginNote(0)   // right-click Allow just allows
+  try expect(r2.answers.map(\.decision) == ["allow"]); try expect(r2.stage.spread == nil)
+}
+
+check("cards: a plan gets its sheet (scrollable) above Approve and Keep planning; waiting for you gets Dismiss") {
+  let plan = Prompt(id: "pl", kind: "plan", text: "Split the stage", plan: (1...80).map { "## Step \($0)\nDo thing \($0)." }.joined(separator: "\n"))
+  let r = Rig([session("a", plan)]); r.settle()
+  r.stage.openSpread(r.stage.characters["a"]!)
+  let s = r.stage.spread!
+  try expect(s.cards.map(\.title) == ["Approve plan", "Keep planning"])
+  let sheet = s.sheet!
+  try expect(sheet.y + sheet.h <= s.cards[0].box.y, "the sheet sits above the cards"); try expect(s.cards.allSatisfy { $0.box.y + $0.box.h <= 900 })
+  r.stage.scrollSheet(lines: 5); r.stage.scrollSheet(lines: -9)
+  try expect(r.stage.spread?.sheetScroll == 0, "can't scroll above the top")
+  r.stage.scrollSheet(lines: 12); try expect(r.stage.spread?.sheetScroll == 12)
+  r.stage.beginNote(1); r.stage.typeNote("merge steps 2 and 3"); r.stage.submitNote()
+  try expect(r.answers.first.map { "\($0.decision) \($0.message ?? "")" } == "deny merge steps 2 and 3")
+  let r2 = Rig([session("a", Prompt(id: "i", kind: "input", text: "Done."))]); r2.settle()
+  r2.stage.openSpread(r2.stage.characters["a"]!)
+  try expect(r2.stage.spread?.cards.map(\.title) == ["Dismiss"])
+  r2.stage.chooseCard(0); try expect(r2.answers.map(\.decision) == ["allow"])
+}
+
+check("cards go away when the prompt is answered elsewhere") {
   let r = Rig([session("a", questionPrompt("q1", [color])), session("b", ask("p2", "permission"))]); r.settle()
-  try expect(!r.stage.openSpread(r.stage.characters["b"]!), "a permission prompt has no cards")
   r.stage.openSpread(r.stage.characters["a"]!)
   r.apply(.answered("a", prompt: "q1", source: "terminal"))
   try expect(r.stage.spread == nil)

@@ -129,6 +129,8 @@ public final class Stage {
   /// Characters follow the sessions: on stage while a prompt is pending, off stage otherwise.
   /// "Waiting for you" prompts that already had their moment on stage.
   public private(set) var shooed: Set<String> = []
+  /// Lets a prompt that walked off come back on the next sync (picked from the Sessions menu).
+  public func recall(prompt id: String) { shooed.remove(id) }
 
   public func sync(_ sessions: [Session]) {
     let known = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })

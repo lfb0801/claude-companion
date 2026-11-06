@@ -124,7 +124,9 @@ public struct Answer: Equatable, Sendable {
   public var answers: [String: String]?
   /// Notes added to a picked answer (right-click a card), keyed by question text.
   public var notes: [String: String]?
-  public init(session: String, prompt: String, decision: String, source: String, answers: [String: String]? = nil, notes: [String: String]? = nil) {
-    self.session = session; self.prompt = prompt; self.decision = decision; self.source = source; self.answers = answers; self.notes = notes
+  /// Why you denied a permission or what should change in a plan (right-click Deny / Keep planning).
+  public var message: String?
+  public init(session: String, prompt: String, decision: String, source: String, answers: [String: String]? = nil, notes: [String: String]? = nil, message: String? = nil) {
+    self.session = session; self.prompt = prompt; self.decision = decision; self.source = source; self.answers = answers; self.notes = notes; self.message = message
   }
 }
