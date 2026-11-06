@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       model = AppModel()
       overlay = OverlayController(model: model)
       toolbar = makeToolbar()
+      ClickLog.start()
       hotKeys = makeHotKeys()
       refused = HotKeys.register(hotKeys)
       status = makeStatusItem()

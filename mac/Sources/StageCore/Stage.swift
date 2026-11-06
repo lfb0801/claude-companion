@@ -107,6 +107,8 @@ public final class Stage {
   public private(set) var intern: AutoWhipper? = nil
   public var swing = SwingGate()
   public var firing = false
+  /// The answer cards dealt for a question, if any (Spread.swift).
+  public internal(set) var spread: Spread? = nil
   public private(set) var cannonEntry = 0, internFlash = 0, stampReady = 0
   public private(set) var shake = 0.0
   var lastFire = 0, lastSound = -100
@@ -137,6 +139,8 @@ public final class Stage {
       }
     }
     for c in all { if let s = known[c.id] { c.folder = s.folder ?? ""; c.title = s.title ?? ""; c.cwd = s.cwd ?? "" } }
+    // Answered elsewhere (terminal, whip, another card): put the cards away.
+    if let s = spread, characters[s.session]?.prompt?.id != s.prompt || characters[s.session]?.answered == true { spread = nil }
   }
 
   @discardableResult
@@ -207,6 +211,7 @@ public final class Stage {
   public func answer(_ c: Character?, decision: String, source: String) -> Bool {
     guard let c, let p = c.prompt, !c.answered else { return false }
     c.answered = true; c.decision = decision
+    if spread?.session == c.id { spread = nil }
     switch source {
     case "stamp": c.stamp = StampMark(text: "DENIED", approve: false, life: 150, max: 150); onSound(.thunk(light: false)); addShake(9); burst(c.x, c.y, "✕", .red, 6)
     case "intern": c.hurt = 28; c.stamp = StampMark(text: "APPROVED", approve: true, life: 50, max: 50); internFlash = 26; burst(c.x, c.y, "✓✓✓", .lime, 8); onSound(.tally)

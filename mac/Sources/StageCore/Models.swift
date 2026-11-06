@@ -122,7 +122,9 @@ public struct Sessions: Sendable {
 public struct Answer: Equatable, Sendable {
   public var session: String, prompt: String, decision: String, source: String
   public var answers: [String: String]?
-  public init(session: String, prompt: String, decision: String, source: String, answers: [String: String]? = nil) {
-    self.session = session; self.prompt = prompt; self.decision = decision; self.source = source; self.answers = answers
+  /// Notes added to a picked answer (right-click a card), keyed by question text.
+  public var notes: [String: String]?
+  public init(session: String, prompt: String, decision: String, source: String, answers: [String: String]? = nil, notes: [String: String]? = nil) {
+    self.session = session; self.prompt = prompt; self.decision = decision; self.source = source; self.answers = answers; self.notes = notes
   }
 }

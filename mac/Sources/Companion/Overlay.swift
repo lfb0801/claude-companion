@@ -48,6 +48,11 @@ final class StageView: NSView {
 
   override func mouseDown(with e: NSEvent) {
     let p = point(e); model.stage.mouse = p
+    // Answer cards out: a card picks, anywhere else puts them away.
+    if let s = model.stage.spread {
+      if let i = s.card(at: p) { model.stage.chooseCard(i) } else { model.stage.closeSpread() }
+      return
+    }
     let t = model.tools
     if t.cannon { model.stage.firing = true; return }
     // A click with the whip in hand stamps with the back of the handle: it denies what's under it.
@@ -55,10 +60,18 @@ final class StageView: NSView {
     model.clicked(at: p)
   }
   override func mouseUp(with e: NSEvent) { model.stage.firing = false }
-  override func rightMouseDown(with e: NSEvent) { model.disarm() }
+  override func rightMouseDown(with e: NSEvent) {
+    let p = point(e)
+    // Right-click a card: pick it and add a note first.
+    if let s = model.stage.spread {
+      if let i = s.card(at: p) { model.noteForCard(i, at: s.cards[i].box) } else { model.stage.closeSpread() }
+      return
+    }
+    model.disarm()
+  }
   override func keyDown(with e: NSEvent) {
     switch e.keyCode {
-    case 53: model.disarm()                                    // Esc
+    case 53: if model.stage.spread != nil { model.stage.closeSpread() } else { model.disarm() }  // Esc
     case 49: if model.tools.cannon { model.stage.firing = true } // Space
     default:
       switch e.charactersIgnoringModifiers?.lowercased() {
@@ -90,6 +103,7 @@ final class OverlayController {
     panel.orderFrontRegardless()
     relayout()
     listenForSnapshots()
+    model.screenRect = { [weak self] b in self?.screenRect(b) ?? .zero }
     model.onArmed = { [weak self] in
       guard let self else { return }
       self.panel.wantsKey = true
@@ -122,12 +136,19 @@ final class OverlayController {
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     try? png.write(to: dir.appendingPathComponent("snapshot.png"))
   }
-  private var signalSource: DispatchSourceSignal?
+  private var signalSources: [DispatchSourceSignal] = []
+  /// Test hooks: `kill -USR1` writes a snapshot; `kill -USR2` "clicks" the first waiting prompt
+  /// (deals a question's cards, or opens another prompt's card).
   func listenForSnapshots() {
-    signal(SIGUSR1, SIG_IGN)
-    let s = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
-    s.setEventHandler { [weak self] in MainActor.assumeIsolated { self?.snapshot() } }
-    s.resume(); signalSource = s
+    for (sig, act) in [(SIGUSR1, { [weak self] in self?.snapshot() }), (SIGUSR2, { [weak self] in
+      guard let self, let c = self.model.stage.targets.first, let p = c.prompt else { return }
+      self.model.open(session: c.id, prompt: p)
+    })] as [(Int32, @MainActor () -> Void)] {
+      signal(sig, SIG_IGN)
+      let s = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+      s.setEventHandler { MainActor.assumeIsolated { act() } }
+      s.resume(); signalSources.append(s)
+    }
   }
 
   private func fitScreen() { panel.setFrame((NSScreen.main ?? NSScreen.screens[0]).frame, display: true); relayout() }
@@ -148,12 +169,15 @@ final class OverlayController {
     stage.mouse = cursor
     stage.tick()
     // Click-through unless the pointer is on a character or a mouse tool is armed.
+    // While answer cards are out the overlay takes every click (outside a card puts them away) and Esc.
+    let cards = stage.spread != nil && !model.noteOpen
     let armed = model.tools.takesMouse, over = stage.pick(stage.mouse)
-    let interactive = armed || over != nil
+    let interactive = armed || cards || over != nil
     if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }
-    panel.wantsKey = armed
+    panel.wantsKey = armed || cards
+    if cards && !panel.isKeyWindow { panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(view) }
     // No hover log while a tool is in hand or a prompt card is open (it would cover the card).
-    hover(model.tools.inHand || model.cardOpen ? nil : over)
+    hover(model.tools.inHand || model.cardOpen || stage.spread != nil ? nil : over)
     view.needsDisplay = true
   }
 

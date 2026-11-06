@@ -58,10 +58,39 @@ final class AppModel: ObservableObject {
     if t.takesMouse && !was { onArmed() }
   }
 
-  /// A click on the stage with no tool armed: the prompt box opens its card.
+  /// A click on the stage with no tool armed: a question deals its answer cards; any other prompt opens its card.
   func clicked(at p: Point) {
     guard let c = stage.pick(p), let prompt = c.prompt, !c.answered else { return }
+    hideLog()
+    if prompt.kind == "question" { stage.openSpread(c); return }
     openCard(session: c.id, prompt: prompt)
+  }
+
+  /// From the sessions menu: deal a question's cards, or open another prompt's card.
+  func open(session id: String, prompt: Prompt) {
+    if prompt.kind == "question", let c = stage.characters[id], stage.openSpread(c) { return }
+    openCard(session: id, prompt: prompt)
+  }
+
+  // MARK: answer cards
+
+  /// Maps a stage box to screen coordinates (set by the overlay).
+  var screenRect: (Box) -> NSRect = { _ in .zero }
+  private var note: NotePanel?
+  var noteOpen: Bool { note != nil }
+
+  /// Right-clicked card: ask for a note, then pick the card with it.
+  func noteForCard(_ i: Int, at box: Box) {
+    guard let s = stage.spread, s.cards.indices.contains(i) else { return }
+    let card = s.cards[i]
+    if card.kind == .done { stage.chooseCard(i); return }
+    note?.close()
+    let panel = NotePanel(option: card.title, beside: screenRect(box)) { [weak self] text in
+      self?.note = nil
+      self?.stage.chooseCard(i, note: text)
+    } cancel: { [weak self] in self?.note = nil }
+    note = panel
+    panel.show()
   }
 
   // MARK: prompt card
@@ -75,17 +104,18 @@ final class AppModel: ObservableObject {
       self.answer(Answer(session: id, prompt: prompt.id, decision: decision, source: "card", answers: answers))
       self.closeCard()
     } cancel: { [weak self] in self?.closeCard() }
-    let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 560, height: 200), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
-    panel.titleVisibility = .hidden; panel.titlebarAppearsTransparent = true
+    // Sized once from the card's content. No full-size content view and no automatic resizing:
+    // together those made SwiftUI and the window resize each other until AppKit aborted the app.
+    let host = NSHostingView(rootView: view)
+    let size = host.fittingSize
+    let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    panel.title = "\(s?.folder ?? "Session") needs you"
     panel.isReleasedWhenClosed = false
     // Above the overlay (.statusBar) and the toolbar, or they would swallow the card's clicks.
     panel.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
     panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-    // Sized to the card (options, plan text, buttons), and following it if it grows.
-    let host = NSHostingController(rootView: view)
-    host.sizingOptions = [.preferredContentSize]
-    panel.contentViewController = host
-    panel.setContentSize(host.view.fittingSize)
+    host.frame = NSRect(origin: .zero, size: size)
+    panel.contentView = host
     panel.center()
     hideLog()
     NSApp.activate(ignoringOtherApps: true)

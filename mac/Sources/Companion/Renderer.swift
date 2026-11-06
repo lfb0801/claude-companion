@@ -260,6 +260,57 @@ struct Renderer {
     if let w = i.whip { whip(w.points, intern: true) }
   }
 
+  // MARK: answer cards
+
+  func spread(_ s: Spread) {
+    let q = s.question, age = Double(stage.time - s.dealtAt)
+    let hover = s.card(at: stage.mouse)
+    // The question above the cards, on a dark plate so it reads over any desktop.
+    let head = "\(s.questions.count > 1 ? "\(s.index + 1)/\(s.questions.count) · " : "")\(q.header.map { "\($0.uppercased()) · " } ?? "")\(q.question)"
+    let hint = s.multi ? "click to toggle · Done to send · right-click: pick with a note · Esc: put away" : "click to pick · right-click: pick with a note · Esc: put away"
+    let left = s.cards.map(\.box.x).min() ?? 0, right = s.cards.map { $0.box.x + $0.box.w }.max() ?? 0
+    let plateW = max(right - left, 520.0), plateX = (left + right) / 2 - plateW / 2
+    ctx.setFillColor(NSColor(hex: 0x11120f, alpha: 0.85).cgColor)
+    ctx.addPath(CGPath(roundedRect: CGRect(x: plateX, y: s.bannerY - 44, width: plateW, height: 50), cornerWidth: 8, cornerHeight: 8, transform: nil)); ctx.fillPath()
+    text(head, at: CGPoint(x: plateX + 14, y: s.bannerY - 22), size: 16, bold: true, color: .lime, maxWidth: plateW - 28)
+    text(hint, at: CGPoint(x: plateX + 14, y: s.bannerY - 4), size: 11, color: NSColor(hex: 0xc9ccb8), maxWidth: plateW - 28)
+    for (i, c) in s.cards.enumerated() {
+      // Dealt one after another, popping up from below.
+      let t = min(1, max(0, (age - Double(i) * 3) / 10))
+      guard t > 0 else { continue }
+      let picked: Bool = { if case .option(let l) = c.kind { return s.picked.contains(l) }; return false }()
+      let lifted = hover == i
+      let b = c.box
+      ctx.saveGState()
+      ctx.setAlpha(t)
+      ctx.translateBy(x: b.x + b.w / 2, y: b.y + b.h / 2 + (1 - t) * 40 - (lifted ? 6 : 0))
+      ctx.rotate(by: (Double(i) - Double(s.cards.count - 1) / 2) * 0.012)
+      ctx.translateBy(x: -b.w / 2, y: -b.h / 2)
+      let rect = CGRect(x: 0, y: 0, width: b.w, height: b.h), path = CGPath(roundedRect: rect, cornerWidth: 12, cornerHeight: 12, transform: nil)
+      ctx.saveGState()
+      ctx.setShadow(offset: CGSize(width: 0, height: lifted ? 14 : 8), blur: lifted ? 22 : 14, color: NSColor(white: 0, alpha: 0.55).cgColor)
+      let isDone = c.kind == .done
+      ctx.setFillColor(NSColor(hex: picked ? 0xffc574 : isDone ? 0xd7ff62 : 0xfff5e2).cgColor)
+      ctx.addPath(path); ctx.fillPath()
+      ctx.restoreGState()
+      ctx.setStrokeColor((lifted || picked ? NSColor.ink : NSColor(hex: 0x6789ad)).cgColor); ctx.setLineWidth(lifted || picked ? 4 : 3)
+      ctx.addPath(path); ctx.strokePath()
+      if !isDone { ctx.setFillColor(NSColor(hex: 0x6789ad).cgColor); ctx.fill(CGRect(x: 0, y: 14, width: 5, height: b.h - 28)) }
+      text(c.title, at: CGPoint(x: 16, y: 30), size: 17, bold: true, color: .ink, maxWidth: b.w - 30)
+      // Description, up to three wrapped lines.
+      let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular), attrs: [NSAttributedString.Key: Any] = [.font: font]
+      var lines: [String] = [], line = ""
+      for word in c.detail.split(separator: " ") {
+        let next = line.isEmpty ? String(word) : line + " " + word
+        if (next as NSString).size(withAttributes: attrs).width > b.w - 32 && !line.isEmpty { lines.append(line); line = String(word) } else { line = next }
+      }
+      if !line.isEmpty { lines.append(line) }
+      for (k, l) in lines.prefix(3).enumerated() { text(k == 2 && lines.count > 3 ? clip(l, 26) + "…" : l, at: CGPoint(x: 16, y: 54 + Double(k) * 16), size: 11, color: NSColor.ink.withAlphaComponent(0.75), maxWidth: b.w - 30) }
+      if picked { text("✓", at: CGPoint(x: b.w - 18, y: 30), size: 20, bold: true, color: .ink, align: .right) }
+      ctx.restoreGState()
+    }
+  }
+
   // MARK: frame
 
   func draw() {
@@ -279,6 +330,7 @@ struct Renderer {
     for d in stage.departures { if let b = d.box, let p = d.prompt { ctx.saveGState(); ctx.setAlpha(max(0, CGFloat(d.life) / CGFloat(d.max))); ctx.translateBy(x: d.x - d.x0, y: 0); promptBox(b, prompt: p, folder: d.folder, born: -100, live: false, stamp: d.stamp); ctx.restoreGState() } }
     if let w = stage.whip { whip(w.points) }
     if stage.tools.cannon { cannon() }
+    if let s = stage.spread { spread(s) }
     shots(); particles(); stamps(); intern()
   }
 }

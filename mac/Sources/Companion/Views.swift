@@ -120,7 +120,7 @@ struct Toolbar: View {
         if model.sessions.all.isEmpty { Text("No sessions yet") }
         ForEach(model.sessions.all, id: \.id) { s in
           Button("\(s.prompt != nil ? "● " : "")\(s.folder ?? "session")\(s.title.map { $0.isEmpty ? "" : " · \($0)" } ?? "")") {
-            if let p = s.prompt { model.openCard(session: s.id, prompt: p) }
+            if let p = s.prompt { model.open(session: s.id, prompt: p) }
           }
         }
       } label: { Text("Sessions \(model.sessions.all.count)") }.fixedSize()

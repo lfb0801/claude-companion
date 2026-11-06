@@ -111,21 +111,23 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
     return Promise.resolve({});
   }
 
-  // The companion answers. decision: 'allow' | 'deny'; answers: {question: label} for questions.
-  function answer({session: id, prompt, decision, answers, source = 'companion'}) {
+  // The companion answers. decision: 'allow' | 'deny'; answers: {question: label} for questions;
+  // notes: {question: text} added to a picked answer, passed on as AskUserQuestion annotations.
+  function answer({session: id, prompt, decision, answers, notes, source = 'companion'}) {
     const s = sessions.get(id);
     const p = s?.prompt;
     if (!p || p.id !== prompt) return false;
+    const annotations = notes && Object.keys(notes).length ? Object.fromEntries(Object.entries(notes).map(([q, n]) => [q, {notes: String(n)}])) : undefined;
     if (p.ask) {
       const a = asks.get(p.ask);
-      if (decision === 'allow') { a.status = 'answered'; a.answers = answers || firstOptions(p.questions); } else a.status = 'declined';
+      if (decision === 'allow') { a.status = 'answered'; a.answers = answers || firstOptions(p.questions); a.annotations = annotations; } else a.status = 'declined';
       wake(a);
       return settle(s, source, decision);
     }
     if (p.kind === 'input') return settle(s, source, decision);
     let reply;
     if (decision === 'allow') {
-      const updatedInput = p.kind === 'question' ? {...p.input, answers: answers || firstOptions(p.questions)} : undefined;
+      const updatedInput = p.kind === 'question' ? {...p.input, answers: answers || firstOptions(p.questions), ...(annotations ? {annotations} : {})} : undefined;
       reply = {hookSpecificOutput: {hookEventName: 'PermissionRequest', decision: {behavior: 'allow', ...(updatedInput ? {updatedInput} : {})}}};
     } else {
       const message = p.kind === 'question' ? 'The user declined to answer from the companion.' : p.kind === 'plan' ? 'The user rejected the plan from the companion. Ask what to change.' : 'Denied from the companion.';
@@ -150,7 +152,7 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
     const a = asks.get(id);
     if (!a) return null;
     if (a.status === 'pending' && waitMs > 0) await new Promise(r => { const t = setTimeout(r, waitMs); a.waiters.add(() => { clearTimeout(t); r(); }); });
-    const out = a.status === 'answered' ? {status: a.status, answers: a.answers} : {status: a.status};
+    const out = a.status === 'answered' ? {status: a.status, answers: a.answers, ...(a.annotations ? {annotations: a.annotations} : {})} : {status: a.status};
     if (a.status !== 'pending') setTimeout(() => asks.delete(id), 60_000).unref?.();
     return out;
   }

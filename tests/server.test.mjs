@@ -170,6 +170,9 @@ test('companion-ask questions: answered, declined, interrupted in the session, o
   const waiting = c.askStatus(a.id, 5000);
   c.answer({session: sid, prompt: promptOf(sid).id, decision: 'allow', answers: {'Which color do you prefer?': 'Blue'}});
   assert.deepEqual(await waiting, {status: 'answered', answers: {'Which color do you prefer?': 'Blue'}});
+  const n = c.ask(q);
+  c.answer({session: sid, prompt: promptOf(sid).id, decision: 'allow', answers: {'Which color do you prefer?': 'Blue — note: darker'}, notes: {'Which color do you prefer?': 'darker'}});
+  assert.deepEqual(await c.askStatus(n.id), {status: 'answered', answers: {'Which color do you prefer?': 'Blue — note: darker'}, annotations: {'Which color do you prefer?': {notes: 'darker'}}}, 'a note on a card goes out as an annotation');
   const b = c.ask(q);
   c.answer({session: sid, prompt: promptOf(sid).id, decision: 'deny'});
   assert.deepEqual(await c.askStatus(b.id), {status: 'declined'});

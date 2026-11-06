@@ -250,5 +250,70 @@ check("only the cannon takes every click; the whip takes clicks only on a charac
   t.cannon = true; try expect(t.takesMouse)
 }
 
+func questionPrompt(_ id: String, _ qs: [Question]) -> Prompt { Prompt(id: id, kind: "question", text: qs[0].question, tool: "AskUserQuestion", questions: qs) }
+let color = Question(question: "Which color?", header: "Color", options: [Option(label: "Red", description: "warm"), Option(label: "Blue", description: "cool"), Option(label: "Green")])
+let size = Question(question: "Which size?", header: "Size", options: [Option(label: "S"), Option(label: "M"), Option(label: "L")])
+let extras = Question(question: "Which extras?", header: "Extras", options: [Option(label: "Cheese"), Option(label: "Onion"), Option(label: "Olives")], multiSelect: true)
+
+check("cards: clicking a question box deals one card per option on stage; left-click picks and sends") {
+  let r = Rig([session("a", questionPrompt("q1", [color]))]); r.settle()
+  let a = r.stage.characters["a"]!
+  try expect(r.stage.openSpread(a))
+  let s = r.stage.spread!
+  try expect(s.cards.map(\.title) == ["Red", "Blue", "Green"])
+  for (i, c) in s.cards.enumerated() {
+    try expect(c.box.x >= 0 && c.box.x + c.box.w <= r.stage.width && c.box.y >= 0 && c.box.y + c.box.h <= 900, "card on stage")
+    try expect(!(c.box.x < a.box!.x + a.box!.w && a.box!.x < c.box.x + c.box.w && c.box.y < a.box!.y + a.box!.h && a.box!.y < c.box.y + c.box.h), "card \(i) clear of the box")
+    for d in s.cards[(i + 1)...] { try expect(c.box.x + c.box.w <= d.box.x || d.box.x + d.box.w <= c.box.x || c.box.y + c.box.h <= d.box.y || d.box.y + d.box.h <= c.box.y, "cards overlap") }
+  }
+  try expect(s.card(at: Point(s.cards[1].box.x + 10, s.cards[1].box.y + 10)) == 1)
+  try expect(s.bannerY - 44 > a.y + 104, "the question banner sits below the character's name label")
+  try expect(Spread.clean("Fast, needs a server. [work: 6-12 calls, 20K-40K]") == "Fast, needs a server.")
+  r.stage.chooseCard(1)
+  try expect(r.answers.count == 1)
+  try expect(r.answers[0].answers == ["Which color?": "Blue"] && r.answers[0].decision == "allow" && r.answers[0].notes == nil)
+  try expect(r.stage.spread == nil)
+}
+
+check("cards: right-click adds a note, sent as a note and woven into the answer text") {
+  let r = Rig([session("a", questionPrompt("q1", [color]))]); r.settle()
+  r.stage.openSpread(r.stage.characters["a"]!)
+  r.stage.chooseCard(0, note: "but a darker shade")
+  try expect(r.answers.first?.answers == ["Which color?": "Red — note: but a darker shade"], "\(String(describing: r.answers.first?.answers))")
+  try expect(r.answers.first?.notes == ["Which color?": "but a darker shade"])
+}
+
+check("cards: several questions come one at a time; the answer goes out after the last") {
+  let r = Rig([session("a", questionPrompt("q1", [color, size]))]); r.settle()
+  r.stage.openSpread(r.stage.characters["a"]!)
+  r.stage.chooseCard(2)
+  try expect(r.answers.isEmpty); try expect(r.stage.spread?.cards.map(\.title) == ["S", "M", "L"])
+  r.stage.chooseCard(1, note: "fits loose")
+  try expect(r.answers.first?.answers == ["Which color?": "Green", "Which size?": "M — note: fits loose"])
+}
+
+check("cards: multi-select toggles cards and sends on Done") {
+  let r = Rig([session("a", questionPrompt("q1", [extras]))]); r.settle()
+  r.stage.openSpread(r.stage.characters["a"]!)
+  try expect(r.stage.spread?.cards.last?.kind == .done)
+  r.stage.chooseCard(0); r.stage.chooseCard(2); r.stage.chooseCard(0); r.stage.chooseCard(1)
+  try expect(r.answers.isEmpty); try expect(r.stage.spread?.picked == ["Olives", "Onion"])
+  r.stage.chooseCard(3)
+  try expect(r.answers.first?.answers == ["Which extras?": "Onion, Olives"])
+}
+
+check("cards: only questions deal cards, and they go away when the question is answered elsewhere") {
+  let r = Rig([session("a", questionPrompt("q1", [color])), session("b", ask("p2", "permission"))]); r.settle()
+  try expect(!r.stage.openSpread(r.stage.characters["b"]!), "a permission prompt has no cards")
+  r.stage.openSpread(r.stage.characters["a"]!)
+  r.apply(.answered("a", prompt: "q1", source: "terminal"))
+  try expect(r.stage.spread == nil)
+  r.apply(.prompt("a", questionPrompt("q2", [color]))); r.settle()
+  r.stage.openSpread(r.stage.characters["a"]!)
+  r.tools { $0.whip = true }
+  r.stage.answer(r.stage.characters["a"], decision: "allow", source: "whip")
+  try expect(r.stage.spread == nil, "the whip answered it")
+}
+
 print("\(passed) passed, \(failures) failed")
 exit(failures == 0 ? 0 : 1)
