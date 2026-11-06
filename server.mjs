@@ -55,6 +55,9 @@ export function createServer({companion = createCompanion(), root = path.dirname
       }
       if (p === '/answer' && req.method === 'POST') return json(res, {ok: companion.answer(await body(req))});
       // Arms the comment inbox: {session?}. One source session per MAIN session; worktree sessions are refused.
+      if (p === '/remarc' && req.method === 'GET') return json(res, inbox.state());
+      if (p === '/remarc/mode' && req.method === 'POST') return json(res, inbox.setMode((await body(req)).mode));
+      if (p === '/remarc/send' && req.method === 'POST') return json(res, inbox.send());
       if (p === '/remarc' && req.method === 'POST') {
         const {session} = await body(req);
         return json(res, await inbox.arm(typeof session === 'string' && session ? session : undefined));

@@ -65,3 +65,24 @@ test('parses remarc_list_comments text', () => {
   const text = '[text] [open] Hero title\n  ID: 6A1B2C3D-0000 (abc12)\n  Comment: Make it blue\n\n[screenshot] [resolved] Footer\n  ID: X (def34)\n  Comment: ok';
   assert.deepEqual(parseComments(text).map(c => [c.id, c.status, c.request]), [['abc12', 'open', 'Make it blue'], ['def34', 'resolved', 'ok']]);
 });
+
+test('batch mode holds comments until send, live delivers at once', async () => {
+  comments = [{id: 'b1', status: 'open', ref: 'r', request: 'one'}];
+  const inbox = createInbox({source, companion, mainCheck});
+  assert.deepEqual(inbox.state(), {linked: false, mode: 'live', pending: 0});
+  await inbox.arm('main');
+  assert.equal(inbox.setMode('nope').ok, false);
+  inbox.setMode('batch');
+  let r = await inbox.next('main');
+  assert.equal(r.prompt, undefined);
+  assert.equal(r.pending, 1);
+  assert.deepEqual(inbox.state(), {linked: true, mode: 'batch', pending: 1});
+  inbox.send();
+  r = await inbox.next('main');
+  assert.deepEqual(r.ids, ['b1']);
+  assert.equal((await inbox.next('main')).prompt, undefined, 'delivered once');
+  comments = [{id: 'b2', status: 'open', ref: 'r', request: 'two'}];
+  assert.equal((await inbox.next('main')).prompt, undefined, 'held again after the send');
+  inbox.setMode('live');
+  assert.deepEqual((await inbox.next('main')).ids, ['b2']);
+});

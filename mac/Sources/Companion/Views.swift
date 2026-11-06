@@ -78,13 +78,28 @@ struct Toolbar: View {
         Text(picked.map { "✓ \($0.folder ?? "session")" } ?? "Sessions \(model.sessions.all.count)")
       }.fixedSize().hint("Sessions", "Pick a session to open its transcript and answer its prompt")
       Divider().frame(height: 16)
-      Button { Remarc.press(.screenshot) } label: { Image(systemName: "camera.viewfinder") }
-        .hint("Remarc screenshot", "Capture part of the screen as a Remarc comment · \(HotKeys.symbol)S")
-      Button { Remarc.press(.note) } label: { Image(systemName: "note.text.badge.plus") }
-        .hint("Remarc note", "Comment on the text selected in the app behind this bar · \(HotKeys.symbol)C")
-      Button { model.startRemarc() } label: {
-        Image(systemName: model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "ellipsis.bubble" : "checkmark.bubble") : "exclamationmark.bubble" } ?? "text.bubble")
-      }.hint("Remarc link", model.remarcResult?.message ?? "Link the main session so Remarc comments arrive as prompts and get routed to nested sessions")
+      if model.remarc.linked {
+        // A session is linked: Remarc's comments reach it by themselves, live or held back until sent.
+        Menu {
+          Toggle("Live: send each comment as it arrives", isOn: Binding(get: { !model.remarc.batch }, set: { _ in model.setRemarcBatch(false) }))
+          Toggle("Batch: hold comments until I send them", isOn: Binding(get: { model.remarc.batch }, set: { _ in model.setRemarcBatch(true) }))
+        } label: { Image(systemName: model.remarc.batch ? "tray.full" : "bolt.fill") }
+          .fixedSize().hint("Remarc \(model.remarc.batch ? "batch" : "live")", "Live sends each comment to the session as it arrives; batch holds them until you press Send. Click to switch")
+        if model.remarc.batch {
+          Button { model.sendRemarcBatch() } label: { Label("\(model.remarc.pending)", systemImage: "paperplane.fill").labelStyle(.titleAndIcon) }
+            .disabled(model.remarc.pending == 0)
+            .hint("Send comments", model.remarc.pending == 0 ? "No Remarc comments are waiting" : "Send the \(model.remarc.pending) waiting Remarc comment\(model.remarc.pending == 1 ? "" : "s") to the session now")
+        }
+      } else {
+        // No Remarc session yet: capture a comment yourself, or link the main session.
+        Button { Remarc.press(.screenshot) } label: { Image(systemName: "camera.viewfinder") }
+          .hint("Remarc screenshot", "Capture part of the screen as a Remarc comment · \(HotKeys.symbol)S")
+        Button { Remarc.press(.note) } label: { Image(systemName: "note.text.badge.plus") }
+          .hint("Remarc note", "Comment on the text selected in the app behind this bar · \(HotKeys.symbol)C")
+        Button { model.startRemarc() } label: {
+          Image(systemName: model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "ellipsis.bubble" : "checkmark.bubble") : "exclamationmark.bubble" } ?? "text.bubble")
+        }.hint("Remarc link", model.remarcResult?.message ?? "Link the main session so Remarc comments arrive as prompts and get routed to nested sessions")
+      }
       Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8)
         .hint("Connection", model.connected ? "Connected to the companion server" : "Server offline, retrying")
     }

@@ -24,7 +24,23 @@ final class AppModel: ObservableObject {
     server.onEvent = { [weak self] e in self?.apply(e) }
   }
 
-  func start() { server.start() }
+  func start() {
+    server.start()
+    pollRemarc(); Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.pollRemarc() } }
+  }
+
+  /// The inbox as the server sees it: whether a Remarc session is linked, live or batch, and how many comments wait.
+  struct RemarcState: Equatable { var linked = false; var batch = false; var pending = 0 }
+  @Published var remarc = RemarcState()
+  private func pollRemarc() {
+    server.get("remarc") { [weak self] data in
+      guard let j = data.flatMap({ try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }) else { return }
+      let next = RemarcState(linked: j["linked"] as? Bool ?? false, batch: (j["mode"] as? String) == "batch", pending: j["pending"] as? Int ?? 0)
+      if next != self?.remarc { self?.remarc = next }
+    }
+  }
+  func setRemarcBatch(_ batch: Bool) { remarc.batch = batch; server.post("remarc/mode", ["mode": batch ? "batch" : "live"]) }
+  func sendRemarcBatch() { server.post("remarc/send", [:]) { [weak self] _, _ in self?.remarc.pending = 0 } }
 
   func apply(_ e: ServerEvent) {
     sessions.apply(e)
