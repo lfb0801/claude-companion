@@ -67,8 +67,6 @@ struct Toolbar: View {
       tool("G", "scope", "Cannon", \.cannon, help: "Hold the mouse to fire approvals")
       tool("D", "square.and.pencil", "Stamp", \.stamp, help: "Click a prompt or its cards to request changes (deny)")
       tool("H", "person.fill.checkmark", "Approval Intern", \.intern, help: "Approves every prompt, in every session")
-      Button { model.toggle(\.muted) } label: { Image(systemName: model.tools.muted ? "speaker.slash.fill" : "speaker.wave.2.fill") }
-        .hint("Sound", "Mute or unmute the stage · \(HotKeys.symbol)M from any app")
       Menu {
         if model.sessions.all.isEmpty { Text("No sessions yet") }
         ForEach(model.sessions.all, id: \.id) { s in

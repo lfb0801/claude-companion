@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 import Carbon.HIToolbox
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   var model: AppModel!
   var overlay: OverlayController!
   var toolbar: NSPanel!
@@ -37,7 +37,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       HotKey(key: kVK_ANSI_G, letter: "G", title: "Cannon") { m.toggle(\.cannon) },
       HotKey(key: kVK_ANSI_D, letter: "D", title: "Stamp (request changes)") { m.toggle(\.stamp) },
       HotKey(key: kVK_ANSI_H, letter: "H", title: "Approval Intern") { m.toggle(\.intern) },
-      HotKey(key: kVK_ANSI_M, letter: "M", title: "Sound on/off") { m.toggle(\.muted) },
       HotKey(key: kVK_ANSI_X, letter: "X", title: "Put tools away") { m.disarm() },
       HotKey(key: kVK_ANSI_T, letter: "T", title: "Show or hide toolbar") { [weak self] in guard let self else { return }; setToolbar(visible: !toolbar.isVisible) },
     ]
@@ -127,22 +126,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     } else {
       item.button?.image = NSImage(systemSymbolName: "figure.wave", accessibilityDescription: "Claude Companion")
     }
+    // The tools live on the toolbar; the menu is for the toolbar itself, sound, and quitting.
     let menu = NSMenu()
-    // Every hotkey, with its shortcut shown; a refused one says so instead of firing.
-    for (i, k) in hotKeys.enumerated() {
-      let taken = refused.contains { $0.letter == k.letter }
-      let mi = NSMenuItem(title: taken ? "\(k.title) (\(HotKeys.symbol)\(k.letter) taken by another app)" : k.title, action: #selector(runHotKey(_:)), keyEquivalent: k.letter.lowercased())
-      mi.keyEquivalentModifierMask = [.control, .option]
-      mi.tag = i; mi.target = self
-      menu.addItem(mi)
-    }
+    menu.delegate = self
+    let bar = NSMenuItem(title: "Show Toolbar", action: #selector(toggleToolbar), keyEquivalent: "t")
+    bar.keyEquivalentModifierMask = [.control, .option]; bar.target = self; bar.tag = 1
+    menu.addItem(bar)
+    let mute = NSMenuItem(title: "Mute Sound", action: #selector(toggleMute), keyEquivalent: "")
+    mute.target = self; mute.tag = 2
+    menu.addItem(mute)
     menu.addItem(.separator())
-    menu.addItem(withTitle: "Quit Companion", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+    menu.addItem(withTitle: "Quit Claude Companion", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     item.menu = menu
     return item
   }
 
-  @objc func runHotKey(_ sender: NSMenuItem) { hotKeys[sender.tag].action() }
+  func menuNeedsUpdate(_ menu: NSMenu) {
+    MainActor.assumeIsolated {
+      menu.item(withTag: 1)?.title = toolbar.isVisible ? "Hide Toolbar" : "Show Toolbar"
+      menu.item(withTag: 2)?.state = model.tools.muted ? .on : .off
+    }
+  }
+  @MainActor @objc func toggleToolbar() { setToolbar(visible: !toolbar.isVisible) }
+  @MainActor @objc func toggleMute() { model.toggle(\.muted) }
+
 }
 
 let app = NSApplication.shared

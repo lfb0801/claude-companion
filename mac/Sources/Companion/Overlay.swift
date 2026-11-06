@@ -101,7 +101,7 @@ final class StageView: NSView {
     default:
       switch e.charactersIgnoringModifiers?.lowercased() {
       case "w": model.toggle(\.whip); case "g": model.toggle(\.cannon); case "d": model.toggle(\.stamp)
-      case "h": model.toggle(\.intern); case "m": model.toggle(\.muted)
+      case "h": model.toggle(\.intern)
       default: super.keyDown(with: e)
       }
     }
