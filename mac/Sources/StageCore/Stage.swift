@@ -45,6 +45,8 @@ public final class Character: Target {
   public var answered = false
   public var decision: String? = nil
   public var hurt = 0, enter = 0, greet = 0
+  /// Frames a "waiting for you" character stays before it walks off on its own.
+  public var linger = 0
   public var stamp: StampMark? = nil
   init(id: String, slot: Int, at p: Point, hue: Double, accessory: String) { self.id = id; self.slot = slot; x = p.x; y = p.y; self.hue = hue; self.accessory = accessory }
 }
@@ -60,6 +62,8 @@ public struct Departure: Sendable {
 
 public enum Layout {
   public static let enter = 45, depart = 60, denyHold = 45, slam = 36, stampCooldown = 105, greet = 110
+  /// "Waiting for you" (a finished turn) is a heads-up, not a blocker: 6 seconds, then off stage.
+  public static let inputLinger = 360
   public static let column = 530.0, row = 170.0, perColumn = 5, boxW = 340.0, boxH = 116.0
   static let ring: [(Double, Double)] = [(0, 0), (-87, -70), (-44, 35), (-131, 0)]
   public static let accessories = ["none", "cap", "bow", "glasses", "headphones", "crown", "antenna"]
@@ -123,17 +127,22 @@ public final class Stage {
   // MARK: sessions in
 
   /// Characters follow the sessions: on stage while a prompt is pending, off stage otherwise.
+  /// "Waiting for you" prompts that already had their moment on stage.
+  public private(set) var shooed: Set<String> = []
+
   public func sync(_ sessions: [Session]) {
     let known = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-    for c in all where known[c.id]?.prompt == nil {
+    let live = { (id: String) -> Prompt? in known[id]?.prompt.flatMap { self.shooed.contains($0.id) ? nil : $0 } }
+    for c in all where live(c.id) == nil {
       if c.greet > 0 && known[c.id] != nil { c.prompt = nil; c.box = nil; continue }
       depart(c); remove(c.id)
     }
     for s in sessions {
-      guard let p = s.prompt else { continue }
+      guard let p = live(s.id) else { continue }
       let c = characters[s.id] ?? arrive(s)
       if c.prompt?.id != p.id {
         c.prompt = p; c.answered = false; c.decision = nil; c.stamp = nil; c.greet = 0
+        c.linger = p.kind == "input" ? Layout.inputLinger : 0
         c.box = Layout.box(for: c); c.boxBorn = time
         onSound(.warn)
       }
@@ -273,6 +282,11 @@ public final class Stage {
       if var s = c.stamp { s.life -= 1; c.stamp = s.life > 0 ? s : nil }
       if c.enter > 0 { c.enter -= 1 }
       if c.greet > 0 { c.greet -= 1; if c.greet == 0 && c.prompt == nil { depart(c); remove(c.id) } }
+      // "Waiting for you" walks off after a moment, unless you're pointing at it.
+      if c.linger > 0, let p = c.prompt, p.kind == "input", !c.answered, c.enter <= 0, pick(mouse) !== c {
+        c.linger -= 1
+        if c.linger == 0 { shooed.insert(p.id); depart(c); remove(c.id) }
+      }
     }
     shake = shake > 0.3 ? shake * 0.88 : 0
     if let i = intern, let e = i.step(all, width: width, height: height) { answer(characters[e], decision: "allow", source: "intern") }

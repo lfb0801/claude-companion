@@ -49,7 +49,9 @@ final class StageView: NSView {
   override func mouseDown(with e: NSEvent) {
     let p = point(e); model.stage.mouse = p
     // Answer cards out: a card picks, anywhere else puts them away.
+    // While a card is flipped for a note, a click elsewhere just flips it back.
     if let s = model.stage.spread {
+      if let n = s.note { if s.card(at: p) != n.card { model.stage.cancelNote() }; return }
       if let i = s.card(at: p) { model.stage.chooseCard(i) } else { model.stage.closeSpread() }
       return
     }
@@ -62,14 +64,29 @@ final class StageView: NSView {
   override func mouseUp(with e: NSEvent) { model.stage.firing = false }
   override func rightMouseDown(with e: NSEvent) {
     let p = point(e)
-    // Right-click a card: pick it and add a note first.
+    // Right-click a card: it flips over and you write a note on its back.
     if let s = model.stage.spread {
-      if let i = s.card(at: p) { model.noteForCard(i, at: s.cards[i].box) } else { model.stage.closeSpread() }
+      if s.note != nil { model.stage.cancelNote() }
+      if let i = s.card(at: p) { model.stage.beginNote(i) } else if s.note == nil { model.stage.closeSpread() }
       return
     }
     model.disarm()
   }
+
+  // Writing on a flipped card: AppKit's own key handling, so accents and dead keys work.
+  override func insertText(_ s: Any) { model.stage.typeNote((s as? NSAttributedString)?.string ?? (s as? String) ?? "") }
+  override func deleteBackward(_ sender: Any?) { model.stage.deleteNoteCharacter() }
+  override func insertNewline(_ sender: Any?) { model.stage.submitNote() }
+  override func cancelOperation(_ sender: Any?) { model.stage.cancelNote() }
+  override func performKeyEquivalent(with e: NSEvent) -> Bool {
+    if model.stage.noting, e.modifierFlags.contains(.command), e.charactersIgnoringModifiers == "v" {
+      model.stage.typeNote(NSPasteboard.general.string(forType: .string) ?? ""); return true
+    }
+    return super.performKeyEquivalent(with: e)
+  }
+
   override func keyDown(with e: NSEvent) {
+    if model.stage.noting { interpretKeyEvents([e]); return }
     switch e.keyCode {
     case 53: if model.stage.spread != nil { model.stage.closeSpread() } else { model.disarm() }  // Esc
     case 49: if model.tools.cannon { model.stage.firing = true } // Space
@@ -170,7 +187,7 @@ final class OverlayController {
     stage.tick()
     // Click-through unless the pointer is on a character or a mouse tool is armed.
     // While answer cards are out the overlay takes every click (outside a card puts them away) and Esc.
-    let cards = stage.spread != nil && !model.noteOpen
+    let cards = stage.spread != nil
     let armed = model.tools.takesMouse, over = stage.pick(stage.mouse)
     let interactive = armed || cards || over != nil
     if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }

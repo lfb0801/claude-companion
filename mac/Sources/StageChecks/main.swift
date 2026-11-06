@@ -283,6 +283,29 @@ check("cards: right-click adds a note, sent as a note and woven into the answer 
   try expect(r.answers.first?.notes == ["Which color?": "but a darker shade"])
 }
 
+check("cards: right-click flips a card to take a note; typing, backspace, Return picks it with the note") {
+  let r = Rig([session("a", questionPrompt("q1", [color]))]); r.settle()
+  r.stage.openSpread(r.stage.characters["a"]!)
+  r.stage.beginNote(1)
+  try expect(r.stage.spread?.note?.card == 1); try expect(r.stage.noting)
+  r.stage.typeNote("darker shaxx"); r.stage.deleteNoteCharacter(); r.stage.deleteNoteCharacter(); r.stage.typeNote("de, é\n")
+  try expect(r.stage.spread?.note?.text == "darker shade, é ", "\(r.stage.spread?.note?.text ?? "")")
+  try expect(r.answers.isEmpty, "nothing sent while writing")
+  r.stage.submitNote()
+  try expect(r.answers.first?.answers == ["Which color?": "Blue — note: darker shade, é"], "\(String(describing: r.answers.first?.answers))")
+}
+
+check("cards: Esc flips the note back without picking; notes are capped") {
+  let r = Rig([session("a", questionPrompt("q1", [color]))]); r.settle()
+  r.stage.openSpread(r.stage.characters["a"]!)
+  r.stage.beginNote(0); r.stage.typeNote(String(repeating: "x", count: 900))
+  try expect(r.stage.spread?.note?.text.count == Spread.noteLimit)
+  r.stage.cancelNote()
+  try expect(r.stage.spread != nil && r.stage.spread?.note == nil && r.answers.isEmpty)
+  r.stage.beginNote(0); r.stage.submitNote()
+  try expect(r.answers.first?.answers == ["Which color?": "Red"], "an empty note is just a pick")
+}
+
 check("cards: several questions come one at a time; the answer goes out after the last") {
   let r = Rig([session("a", questionPrompt("q1", [color, size]))]); r.settle()
   r.stage.openSpread(r.stage.characters["a"]!)
@@ -313,6 +336,26 @@ check("cards: only questions deal cards, and they go away when the question is a
   r.tools { $0.whip = true }
   r.stage.answer(r.stage.characters["a"], decision: "allow", source: "whip")
   try expect(r.stage.spread == nil, "the whip answered it")
+}
+
+check("waiting for you: on stage for a moment, then off on its own and not back for the same wait; a real prompt still stays") {
+  let r = Rig([session("a"), session("b")])
+  r.apply(.prompt("a", Prompt(id: "i1", kind: "input", text: "Done.")))
+  r.apply(.prompt("b", ask("p1", "permission")))
+  r.settle()
+  try expect(r.stage.characters["a"] != nil)
+  r.stage.mouse = Point(5, 5)
+  for _ in 0..<(Layout.inputLinger + 5) { r.stage.tick() }
+  try expect(r.stage.characters["a"] == nil, "left on its own"); try expect(r.stage.characters["b"] != nil, "the permission prompt stays")
+  r.apply(.session(session("a")))
+  try expect(r.stage.characters["a"] == nil, "a later sync does not bring the same wait back")
+  try expect(r.sessions["a"]?.prompt?.id == "i1", "the session still counts as waiting")
+  r.apply(.prompt("a", Prompt(id: "i2", kind: "input", text: "Done again.")))
+  try expect(r.stage.characters["a"] != nil, "a new wait comes on again")
+  let a = r.stage.characters["a"]!
+  r.settle(); r.stage.mouse = Point(a.x, a.y)
+  for _ in 0..<(Layout.inputLinger + 5) { r.stage.tick() }
+  try expect(r.stage.characters["a"] != nil, "stays while you point at it")
 }
 
 print("\(passed) passed, \(failures) failed")

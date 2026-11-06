@@ -278,11 +278,12 @@ struct Renderer {
       // Dealt one after another, popping up from below.
       let t = min(1, max(0, (age - Double(i) * 3) / 10))
       guard t > 0 else { continue }
+      if let n = s.note, n.card == i { noteCard(c, n); continue }
       let picked: Bool = { if case .option(let l) = c.kind { return s.picked.contains(l) }; return false }()
       let lifted = hover == i
       let b = c.box
       ctx.saveGState()
-      ctx.setAlpha(t)
+      ctx.setAlpha(t * (s.note == nil ? 1 : 0.4))   // the others step back while you write
       ctx.translateBy(x: b.x + b.w / 2, y: b.y + b.h / 2 + (1 - t) * 40 - (lifted ? 6 : 0))
       ctx.rotate(by: (Double(i) - Double(s.cards.count - 1) / 2) * 0.012)
       ctx.translateBy(x: -b.w / 2, y: -b.h / 2)
@@ -309,6 +310,51 @@ struct Renderer {
       if picked { text("✓", at: CGPoint(x: b.w - 18, y: 30), size: 20, bold: true, color: .ink, align: .right) }
       ctx.restoreGState()
     }
+  }
+
+  /// A card flipping over (a squash through its edge), then its back: the note being written.
+  private func noteCard(_ c: SpreadCard, _ n: Spread.Note) {
+    let f = min(1, Double(stage.time - n.since) / 12), b = c.box
+    let back = f >= 0.5, squash = max(0.02, back ? f * 2 - 1 : 1 - f * 2)
+    // The back is taller than the front so a few lines of note fit; it grows as it turns.
+    let h = back ? b.h + 60 * squash : b.h
+    ctx.saveGState()
+    ctx.translateBy(x: b.x + b.w / 2, y: b.y + h / 2 - 6)
+    ctx.scaleBy(x: squash, y: 1)
+    ctx.translateBy(x: -b.w / 2, y: -h / 2)
+    let rect = CGRect(x: 0, y: 0, width: b.w, height: h), path = CGPath(roundedRect: rect, cornerWidth: 12, cornerHeight: 12, transform: nil)
+    ctx.saveGState()
+    ctx.setShadow(offset: CGSize(width: 0, height: 16), blur: 26, color: NSColor(white: 0, alpha: 0.6).cgColor)
+    ctx.setFillColor(NSColor(hex: back ? 0xfff0c8 : 0xfff5e2).cgColor); ctx.addPath(path); ctx.fillPath()
+    ctx.restoreGState()
+    ctx.setStrokeColor(NSColor.ink.cgColor); ctx.setLineWidth(4); ctx.addPath(path); ctx.strokePath()
+    if !back {
+      text(c.title, at: CGPoint(x: 16, y: 30), size: 17, bold: true, color: .ink, maxWidth: b.w - 30)
+    } else {
+      // Ruled like an index card.
+      ctx.setStrokeColor(NSColor(hex: 0x6789ad, alpha: 0.25).cgColor); ctx.setLineWidth(1)
+      for k in 0..<5 { let y = 58 + Double(k) * 18; ctx.move(to: CGPoint(x: 12, y: y)); ctx.addLine(to: CGPoint(x: b.w - 12, y: y)) }
+      ctx.strokePath()
+      ctx.setStrokeColor(NSColor(hex: 0xd65743, alpha: 0.5).cgColor); ctx.move(to: CGPoint(x: 0, y: 38)); ctx.addLine(to: CGPoint(x: b.w, y: 38)); ctx.strokePath()
+      text("NOTE · \(c.title)".uppercased(), at: CGPoint(x: 14, y: 26), size: 11, bold: true, color: NSColor(hex: 0x9a4d17), maxWidth: b.w - 28)
+      // The note, wrapped; the last five lines show, with a blinking caret.
+      let font = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium), attrs: [NSAttributedString.Key: Any] = [.font: font]
+      var lines: [String] = [], line = ""
+      for ch in n.text {
+        let next = line + String(ch)
+        if (next as NSString).size(withAttributes: attrs).width > b.w - 30 {
+          if let sp = line.lastIndex(of: " "), ch != " " { lines.append(String(line[..<sp])); line = String(line[line.index(after: sp)...]) + String(ch) }
+          else { lines.append(line); line = ch == " " ? "" : String(ch) }
+        } else { line = next }
+      }
+      lines.append(line)
+      let shown = Array(lines.suffix(5)), caret = (stage.time / 30) % 2 == 0 ? "▏" : " "
+      if n.text.isEmpty { text("Type your note…", at: CGPoint(x: 14, y: 55), size: 13, color: NSColor.ink.withAlphaComponent(0.35)) }
+      for (k, l) in shown.enumerated() { text(l + (k == shown.count - 1 ? caret : ""), at: CGPoint(x: 14, y: 55 + Double(k) * 18), size: 13, color: .ink) }
+      if n.text.isEmpty { text(caret, at: CGPoint(x: 12, y: 55), size: 13, color: .ink) }
+      text("return: pick with note · esc: flip back", at: CGPoint(x: 14, y: h - 10), size: 10, color: NSColor.ink.withAlphaComponent(0.6), maxWidth: b.w - 28)
+    }
+    ctx.restoreGState()
   }
 
   // MARK: frame

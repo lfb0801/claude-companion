@@ -4,7 +4,7 @@ import {readFileSync, writeFileSync, appendFileSync, mkdtempSync} from 'node:fs'
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import {createCompanion} from '../companion.mjs';
+import {createCompanion, plain} from '../companion.mjs';
 import {createServer} from '../server.mjs';
 import {parseLine, Tail} from '../transcript.mjs';
 
@@ -117,6 +117,10 @@ test('a tool that approves a question without picking answers chooses the first 
   c.answer({session: pr.session_id, prompt: promptOf(pr.session_id).id, decision: 'allow', source: 'whip'});
   await tick();
   assert.deepEqual(reply.hookSpecificOutput.decision.updatedInput.answers, {'Which fruit do you prefer?': 'Apple'});
+});
+
+test('the waiting-for-you text drops Markdown markup', () => {
+  assert.equal(plain('You answered **SQLite** for the `db`. See [docs](https://x).\n## Next\n- item'), 'You answered SQLite for the db. See docs.\nNext\nitem');
 });
 
 test('Stop and idle notifications put a waiting-for-input prompt up; a new prompt in the terminal takes it down', async () => {

@@ -10,7 +10,9 @@ import {parseLine, toolSummary, Tail} from './transcript.mjs';
 const LOG_KEEP = 300;
 const one = s => String(s ?? '').replace(/\s+/g, ' ').trim();
 const cut = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
-const firstOptions = questions => Object.fromEntries((questions || []).map(q => [q.question, q.options?.[0]?.label ?? '']));
+// Claude's last message without Markdown markup, for a one-line box: **bold**, `code`, # headings, [links](url).
+export const plain = s => String(s ?? '').replace(/```[\s\S]*?```/g, ' ').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/(\*\*|__|`)/g, '').replace(/^\s{0,3}#{1,6}\s+/gm, '').replace(/^\s*[-*]\s+/gm, '');
+const firstOptions =questions => Object.fromEntries((questions || []).map(q => [q.question, q.options?.[0]?.label ?? '']));
 
 function describe(tool, input = {}, cwd = '') {
   const rel = p => p && cwd && p.startsWith(cwd + '/') ? p.slice(cwd.length + 1) : p;
@@ -66,7 +68,7 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
     emit({type: 'prompt', id: s.id, prompt: publicPrompt(s.prompt)});
     return s.prompt;
   }
-  const idle = (s, text) => { if (!s.prompt) setPrompt(s, {kind: 'input', text: cut(one(text) || 'Waiting for your input', 160), detail: 'Waiting for your next prompt', tool: null}); };
+  const idle = (s, text) => { if (!s.prompt) setPrompt(s, {kind: 'input', text: cut(one(plain(text)) || 'Waiting for your input', 160), detail: 'Waiting for your next prompt', tool: null}); };
   const clearIdle = (s, source = 'terminal') => { if (s.prompt?.kind === 'input') settle(s, source, 'none'); };
 
   // One hook event in, the hook's reply out. Most replies are immediate and empty; a

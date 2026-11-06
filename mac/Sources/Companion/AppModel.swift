@@ -72,26 +72,8 @@ final class AppModel: ObservableObject {
     openCard(session: id, prompt: prompt)
   }
 
-  // MARK: answer cards
-
   /// Maps a stage box to screen coordinates (set by the overlay).
   var screenRect: (Box) -> NSRect = { _ in .zero }
-  private var note: NotePanel?
-  var noteOpen: Bool { note != nil }
-
-  /// Right-clicked card: ask for a note, then pick the card with it.
-  func noteForCard(_ i: Int, at box: Box) {
-    guard let s = stage.spread, s.cards.indices.contains(i) else { return }
-    let card = s.cards[i]
-    if card.kind == .done { stage.chooseCard(i); return }
-    note?.close()
-    let panel = NotePanel(option: card.title, beside: screenRect(box)) { [weak self] text in
-      self?.note = nil
-      self?.stage.chooseCard(i, note: text)
-    } cancel: { [weak self] in self?.note = nil }
-    note = panel
-    panel.show()
-  }
 
   // MARK: prompt card
 

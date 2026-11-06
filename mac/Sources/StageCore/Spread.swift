@@ -22,6 +22,10 @@ public struct Spread: Sendable {
   public private(set) var picked: Set<String> = []
   public private(set) var cards: [SpreadCard] = []
   public private(set) var dealtAt = 0
+  /// A card flipped over to take a note (right-click): which card, what's typed, when it flipped.
+  public struct Note: Equatable, Sendable { public let card: Int; public var text: String; public let since: Int }
+  public internal(set) var note: Note? = nil
+  public static let noteLimit = 400
 
   public static let cardW = 230.0, cardH = 128.0, gap = 18.0
 
@@ -103,6 +107,40 @@ extension Stage {
     return true
   }
   public func closeSpread() { if spread != nil { spread = nil; onSound(.toggle(on: false)) } }
+
+  // MARK: notes on the back of a card
+
+  /// Right-click: flip card `i` over to type a note on its back. The Done card just sends.
+  public func beginNote(_ i: Int) {
+    guard var s = spread, s.cards.indices.contains(i) else { return }
+    if s.cards[i].kind == .done { chooseCard(i); return }
+    s.note = Spread.Note(card: i, text: "", since: time)
+    spread = s
+    onSound(.toggle(on: true))
+  }
+  public var noting: Bool { spread?.note != nil }
+  public func typeNote(_ text: String) {
+    guard var s = spread, var n = s.note else { return }
+    let clean = text.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ").filter { !$0.isASCII || $0.asciiValue! >= 32 }
+    n.text = String((n.text + clean).prefix(Spread.noteLimit))
+    s.note = n; spread = s
+  }
+  public func deleteNoteCharacter() {
+    guard var s = spread, var n = s.note, !n.text.isEmpty else { return }
+    n.text.removeLast(); s.note = n; spread = s
+  }
+  /// Return: pick the flipped card with what's written on its back.
+  public func submitNote() {
+    guard var s = spread, let n = s.note else { return }
+    s.note = nil; spread = s
+    chooseCard(n.card, note: n.text)
+  }
+  /// Esc: flip the card back; nothing is picked.
+  public func cancelNote() {
+    guard var s = spread, s.note != nil else { return }
+    s.note = nil; spread = s
+    onSound(.toggle(on: false))
+  }
 
   /// Left-click (note nil) or right-click-then-note on card `i`.
   public func chooseCard(_ i: Int, note: String? = nil) {
