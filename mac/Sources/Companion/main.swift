@@ -85,7 +85,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     toolbarTop = p.frame.maxY
     toolbarObservers = [
       nc.addObserver(forName: NSWindow.didMoveNotification, object: p, queue: .main) { [weak self, weak p] _ in
-        MainActor.assumeIsolated { if let self, let p, abs(p.frame.maxY - self.toolbarTop) > 0.5, !self.resizing { self.toolbarTop = p.frame.maxY } }
+        MainActor.assumeIsolated { if let self, let p, abs(p.frame.maxY - self.toolbarTop) > 0.5, !self.resizing { self.toolbarTop = p.frame.maxY }
+          self?.scheduleSnap() }
       },
       nc.addObserver(forName: NSWindow.didResizeNotification, object: p, queue: .main) { [weak self, weak p] _ in
         MainActor.assumeIsolated {
@@ -96,6 +97,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ]
   }
   var resizing = false
+  private var snapTimer: Timer?
+
+  /// Once the toolbar stops moving and the button is up, pull it to a screen edge it is close to.
+  @MainActor private func scheduleSnap() {
+    snapTimer?.invalidate()
+    snapTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: false) { [weak self] _ in
+      MainActor.assumeIsolated {
+        guard let self, let p = self.toolbar else { return }
+        if NSEvent.pressedMouseButtons != 0 { self.scheduleSnap(); return }
+        let area = (p.screen ?? NSScreen.main)?.visibleFrame ?? .zero
+        let margin: CGFloat = 8, reach: CGFloat = 40
+        var o = p.frame.origin
+        let f = p.frame
+        if abs(f.minX - area.minX) < reach { o.x = area.minX + margin } else if abs(area.maxX - f.maxX) < reach { o.x = area.maxX - f.width - margin }
+        if abs(area.maxY - f.maxY) < reach { o.y = area.maxY - f.height - margin } else if abs(f.minY - area.minY) < reach { o.y = area.minY + margin }
+        if o != f.origin { p.setFrameOrigin(o) }
+      }
+    }
+  }
 
   @MainActor private func makeStatusItem() -> NSStatusItem {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
