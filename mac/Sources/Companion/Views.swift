@@ -49,7 +49,12 @@ struct PromptCard: View {
               HStack(alignment: .top) {
                 Image(systemName: selected(i, o.label) ? (q.multiSelect == true ? "checkmark.square.fill" : "largecircle.fill.circle") : (q.multiSelect == true ? "square" : "circle"))
                 VStack(alignment: .leading) { Text(o.label).bold(); if let d = o.description, !d.isEmpty { Text(d).font(.caption).foregroundStyle(ink.opacity(0.7)) } }
-              }.foregroundStyle(ink).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+              }.foregroundStyle(ink).frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6).padding(.horizontal, 8)
+                // The picked option is unmistakable: filled amber row with a dark border.
+                .background(RoundedRectangle(cornerRadius: 6).fill(selected(i, o.label) ? Color(nsColor: NSColor(hex: 0xffc574)) : Color.clear))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected(i, o.label) ? ink : ink.opacity(0.15), lineWidth: selected(i, o.label) ? 2 : 1))
+                .contentShape(Rectangle())
             }.buttonStyle(.plain)
           }
           TextField("Other answer", text: Binding(get: { other[i] ?? "" }, set: { other[i] = $0 })).textFieldStyle(.roundedBorder)

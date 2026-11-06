@@ -152,7 +152,8 @@ final class OverlayController {
     let interactive = armed || over != nil
     if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }
     panel.wantsKey = armed
-    hover(model.tools.inHand ? nil : over)
+    // No hover log while a tool is in hand or a prompt card is open (it would cover the card).
+    hover(model.tools.inHand || model.cardOpen ? nil : over)
     view.needsDisplay = true
   }
 

@@ -77,14 +77,23 @@ final class AppModel: ObservableObject {
     } cancel: { [weak self] in self?.closeCard() }
     let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 560, height: 200), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
     panel.titleVisibility = .hidden; panel.titlebarAppearsTransparent = true
-    panel.level = .modalPanel; panel.isReleasedWhenClosed = false
-    panel.contentViewController = NSHostingController(rootView: view)
+    panel.isReleasedWhenClosed = false
+    // Above the overlay (.statusBar) and the toolbar, or they would swallow the card's clicks.
+    panel.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
+    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+    // Sized to the card (options, plan text, buttons), and following it if it grows.
+    let host = NSHostingController(rootView: view)
+    host.sizingOptions = [.preferredContentSize]
+    panel.contentViewController = host
+    panel.setContentSize(host.view.fittingSize)
     panel.center()
+    hideLog()
     NSApp.activate(ignoringOtherApps: true)
     panel.makeKeyAndOrderFront(nil)
     card = panel; cardFor = (id, prompt.id)
   }
   func closeCard() { card?.close(); card = nil; cardFor = nil }
+  var cardOpen: Bool { card != nil }
 
   // MARK: hover log
 
