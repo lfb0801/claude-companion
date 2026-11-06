@@ -136,43 +136,18 @@ test('a deny with a note tells Claude why; a plan sent back says what to change'
   assert.equal(reply.hookSpecificOutput.decision.message, 'The user wants changes to the plan: split step 2 in two');
 });
 
-test('after you answer on the companion, a turn that just replies stays quiet; real work afterwards still raises waiting-for-you', async () => {
+test('a finished turn or idle notification raises nothing: prompts come from the Remarc session', async () => {
   const {c, promptOf} = watched();
   const L = hooks('session-a');
   const sid = L[0].session_id;
-  // Question answered from the companion, Claude replies "you picked Blue", Stop: no popup.
-  c.ingest(L[25]); await tick();
-  c.answer({session: sid, prompt: promptOf(sid).id, decision: 'allow', answers: {'Which fruit do you prefer?': 'Blue'}});
-  await c.ingest(L[27]); // Stop
-  assert.equal(promptOf(sid), null, 'no "you picked Blue" popup');
-  await c.ingest(L[42]); // idle_prompt a minute later
-  assert.equal(promptOf(sid), null, 'and not a minute later either');
-  // Next prompt; permission allowed here, then Claude does more work (a tool call) before stopping: popup.
-  await c.ingest(L[36]); // UserPromptSubmit
-  c.ingest(L[37]); c.ingest(L[38]); await tick();
-  c.answer({session: sid, prompt: promptOf(sid).id, decision: 'allow'});
-  await c.ingest(L[29]); // PreToolUse Write: real work after the answer
-  await c.ingest(L[41]); // Stop
-  assert.equal(promptOf(sid)?.kind, 'input', 'work happened after the answer, so the finished turn is worth showing');
+  await c.ingest(L[5]); // Stop
+  assert.equal(promptOf(sid), null, 'no waiting-for-you card after a Stop');
+  await c.ingest(L[42]); // idle_prompt
+  assert.equal(promptOf(sid), null, 'and none from an idle notification');
 });
 
 test('the waiting-for-you text drops Markdown markup', () => {
   assert.equal(plain('You answered **SQLite** for the `db`. See [docs](https://x).\n## Next\n- item'), 'You answered SQLite for the db. See docs.\nNext\nitem');
-});
-
-test('Stop and idle notifications put a waiting-for-input prompt up; a new prompt in the terminal takes it down', async () => {
-  const {c, promptOf, of} = watched();
-  const L = hooks('session-a');
-  const sid = L[0].session_id;
-  await c.ingest(L[5]); // Stop
-  assert.equal(promptOf(sid).kind, 'input');
-  assert.match(promptOf(sid).text, /spike1\.txt/);
-  await c.ingest(L[6]); // UserPromptSubmit
-  assert.equal(promptOf(sid), null);
-  await c.ingest(L[42]); // idle_prompt
-  assert.equal(promptOf(sid).kind, 'input');
-  assert.equal(c.answer({session: sid, prompt: promptOf(sid).id, decision: 'allow'}), true, 'dismissed from the companion');
-  assert.equal(of('answered').at(-1).source, 'companion');
 });
 
 test('sessions: created on first event, greeted on start, titled from the transcript, removed on end with held prompts released', async () => {

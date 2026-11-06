@@ -8,6 +8,8 @@ final class AppModel: ObservableObject {
   @Published private(set) var sessions = Sessions()
   @Published private(set) var tools = Tools()
   @Published var connected = false
+  /// The session last picked from the sessions menu (shown with a check mark there).
+  @Published var selectedSession: String?
   @Published var logLines: [LogLine] = []
   let stage = Stage(width: 1600)
   let server = Server()
@@ -64,7 +66,9 @@ final class AppModel: ObservableObject {
   }
 
   /// From the sessions menu: deal that session's cards (it walks back on stage if it had left).
-  func open(session id: String, prompt: Prompt) {
+  func open(session id: String, prompt: Prompt?) {
+    selectedSession = id
+    guard let prompt else { return }
     if stage.characters[id] == nil { stage.recall(prompt: prompt.id); stage.sync(sessions.all) }
     if let c = stage.characters[id] { stage.openSpread(c) }
   }

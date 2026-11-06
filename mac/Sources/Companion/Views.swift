@@ -46,11 +46,13 @@ struct Toolbar: View {
       Menu {
         if model.sessions.all.isEmpty { Text("No sessions yet") }
         ForEach(model.sessions.all, id: \.id) { s in
-          Button("\(s.prompt != nil ? "● " : "")\(s.folder ?? "session")\(s.title.map { $0.isEmpty ? "" : " · \($0)" } ?? "")") {
-            if let p = s.prompt { model.open(session: s.id, prompt: p) }
-          }
+          let name = "\(s.prompt != nil ? "● " : "")\(s.folder ?? "session")\(s.title.map { $0.isEmpty ? "" : " · \($0)" } ?? "")"
+          Toggle(name, isOn: Binding(get: { model.selectedSession == s.id }, set: { _ in model.open(session: s.id, prompt: s.prompt) }))
         }
-      } label: { Text("Sessions \(model.sessions.all.count)") }.fixedSize()
+      } label: {
+        let picked = model.sessions.all.first { $0.id == model.selectedSession }
+        Text(picked.map { "✓ \($0.folder ?? "session")" } ?? "Sessions \(model.sessions.all.count)")
+      }.fixedSize()
       Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8).help(model.connected ? "Connected to the companion server" : "Server offline, retrying")
     }
     .buttonStyle(.bordered).controlSize(.small)

@@ -68,7 +68,8 @@ export function createCompanion({tail = true, tailInterval = 500} = {}) {
     emit({type: 'prompt', id: s.id, prompt: publicPrompt(s.prompt)});
     return s.prompt;
   }
-  const idle = (s, text) => { if (!s.prompt) setPrompt(s, {kind: 'input', text: cut(one(plain(text)) || 'Waiting for your input', 160), detail: 'Waiting for your next prompt', tool: null}); };
+  // A finished turn raises nothing: prompts come from the Remarc session, not from the companion.
+  const idle = () => {};
   const clearIdle = (s, source = 'terminal') => { if (s.prompt?.kind === 'input') settle(s, source, 'none'); };
 
   // One hook event in, the hook's reply out. Most replies are immediate and empty; a

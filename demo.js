@@ -10,7 +10,6 @@ const PROMPTS=[
  {kind:'permission',text:'Edit src/server.mjs',detail:'Add the /events endpoint'},
  {kind:'question',text:'Which port should the server use?',detail:'5173 · 8080 · Other'},
  {kind:'plan',text:'Plan: split theater.js into stage and tools',detail:'4 steps · ready to execute'},
- {kind:'input',text:'Done. Anything else?',detail:'Waiting for your next prompt'},
 ];
 export function startDemo(dispatch,listeners){
  let n=0;const ask=id=>dispatch({type:'prompt',id,prompt:{id:`p${++n}`,...PROMPTS[n%PROMPTS.length]}});
