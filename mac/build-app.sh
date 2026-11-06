@@ -13,6 +13,7 @@ rm -rf "$APP" build/Companion.app
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Companion"
 cp Sources/Companion/Resources/* "$APP/Contents/Resources/"
+cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # drawn by make-icon.swift
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -21,6 +22,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>Claude Companion</string>
   <key>CFBundleDisplayName</key><string>Claude Companion</string>
   <key>CFBundleIdentifier</key><string>nl.lloydvanzaalen.claude-companion</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleExecutable</key><string>Companion</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
