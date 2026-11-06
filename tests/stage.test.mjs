@@ -5,7 +5,7 @@ import {initial,reduce} from '../state.js';
 // Browser globals the stage touches, stubbed for node.
 globalThis.requestAnimationFrame = () => {};
 globalThis.devicePixelRatio = 1;
-const {Theater, ENTER, OFFSTAGE, STAMP_COOLDOWN, DENY_HOLD} = await import('../theater.js');
+const {Theater, ENTER, OFFSTAGE, STAMP_COOLDOWN, DENY_HOLD, GREET, looks, ACCESSORIES} = await import('../theater.js');
 
 const session = (id, prompt = null) => ({id, folder: `proj-${id}`, title: `Task ${id}`, prompt});
 const ask = (id, kind = 'permission') => ({id, kind, text: `Bash: npm test (${id})`, detail: 'Run the tests'});
@@ -142,6 +142,44 @@ test('a prompt gets one answer even when several tools land on it at once', () =
   assert.equal(r.t.answer(a, 'allow', 'whip'), true);
   assert.equal(r.t.answer(a, 'deny', 'stamp'), false);
   assert.equal(r.answers.length, 1);
+});
+
+test('SessionStart: a character makes a short entrance and leaves again, unless a prompt arrives meanwhile', () => {
+  const r = rig([session('a'), session('b')]);
+  r.t.greet(session('a'));
+  assert.ok(r.t.entities.has('a'));
+  r.dispatch({type: 'whip'}); // a sync while greeting keeps it on stage
+  assert.ok(r.t.entities.has('a'));
+  for (let i = 0; i < GREET; i++) r.t.tick();
+  assert.equal(r.t.entities.has('a'), false);
+  assert.equal(r.t.departures.length, 1);
+  r.t.greet(session('b'));
+  r.dispatch({type: 'prompt', id: 'b', prompt: ask('p1')});
+  for (let i = 0; i < GREET * 2; i++) r.t.tick();
+  assert.ok(r.t.entities.has('b'), 'stays: it needs you now');
+  assert.equal(r.t.entities.get('b').greet, 0);
+});
+
+test('each project gets a stable hue and accessory from its folder, and the label shows folder and title', () => {
+  assert.deepEqual(looks('/work/a'), looks('/work/a'));
+  const all = new Set(Array.from({length: 40}, (_, i) => JSON.stringify(looks(`/work/p${i}`))));
+  assert.ok(all.size > 30, 'different projects look different');
+  assert.ok(Array.from({length: 40}, (_, i) => looks(`/x/${i}`).accessory).every(a => ACCESSORIES.includes(a)));
+  const r = rig([{...session('a', ask('p1')), cwd: '/work/a'}]);
+  const a = r.t.entities.get('a');
+  assert.equal(a.hue, looks('/work/a').hue);
+  assert.equal(a.folder, 'proj-a'); assert.equal(a.title, 'Task a');
+  r.dispatch({type: 'session', session: {id: 'a', title: 'Renamed by ai-title'}});
+  assert.equal(a.title, 'Renamed by ai-title');
+});
+
+test('pick finds the character or prompt box under the pointer, for clicks and hover', () => {
+  const r = rig([session('a', ask('p1'))]);
+  assert.equal(r.t.pick({x: 5, y: 5}), null);
+  r.settle();
+  const a = r.t.entities.get('a');
+  assert.equal(r.t.pick({x: a.x, y: a.y}), a);
+  assert.equal(r.t.pick({x: a.box.x + 3, y: a.box.y + 3}), a);
 });
 
 test('cannon entry plays the local cue once per activation and stops on mute', () => {

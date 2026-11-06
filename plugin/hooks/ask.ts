@@ -2,16 +2,20 @@ import type { Register } from 'claude-code'
 
 // The companion server. Protocol:
 //   POST /ask            {session_id, cwd, tool_use_id, questions} -> {id}
-//   GET  /ask/:id?wait=N -> {status:'pending'} | {status:'answered', answers, annotations?} | {status:'cancelled'}
+//   GET  /ask/:id?wait=N -> {status:'pending'} | {status:'answered', answers, annotations?}
+//                           | {status:'declined'}  (stamped in the companion)
+//                           | {status:'cancelled'} (companion closed: ask in the terminal instead)
 //   POST /ask/:id/cancel -> tells the companion the question is gone (interrupt)
-const COMPANION = 'http://127.0.0.1:5199'
+const COMPANION = 'http://127.0.0.1:5173'
 // Kept under the engine's 5s linger after an interrupt, so the loop always sees the abort in time.
 const POLL_WAIT_S = 4
 
 type AskReply =
   | { status: 'pending' }
   | { status: 'answered'; answers: Record<string, string>; annotations?: Record<string, unknown> }
+  | { status: 'declined' }
   | { status: 'cancelled' }
+  | { status: 'interrupted' }
 
 export const register: Register = on => {
   on('tool.call', { tool: 'AskUserQuestion' }, async ($, e, next) => {
@@ -53,7 +57,9 @@ export const register: Register = on => {
               ...(reply.annotations ? { annotations: reply.annotations } : {}),
             },
           }
+        if (reply.status === 'declined') return { deny: 'The user declined to answer.' }
         if (reply.status === 'cancelled') return next(e)
+        if (reply.status === 'interrupted') break
       }
       return { deny: 'The user interrupted the question.' }
     } finally {

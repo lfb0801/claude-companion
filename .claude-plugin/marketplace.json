@@ -1,0 +1,7 @@
+{
+  "name": "companion",
+  "owner": {"name": "Lloyd van Zaalen"},
+  "plugins": [
+    {"name": "companion-stage", "source": "./plugin", "description": "Hooks and the AskUserQuestion mod for the Claude Code companion stage"}
+  ]
+}

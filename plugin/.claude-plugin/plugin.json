@@ -1,0 +1,6 @@
+{
+  "name": "companion-stage",
+  "version": "0.1.0",
+  "description": "Sends Claude Code session events to the companion stage on 127.0.0.1:5173 and lets it answer permission prompts and questions",
+  "license": "MIT"
+}
