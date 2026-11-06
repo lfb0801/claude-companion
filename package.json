@@ -3,12 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "A stage that watches Claude Code sessions and answers their prompts",
+  "license": "MIT",
+  "author": "Lloyd van Zaalen",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lfb0801/claude-companion.git"
+  },
+  "homepage": "https://github.com/lfb0801/claude-companion#readme",
+  "bugs": {
+    "url": "https://github.com/lfb0801/claude-companion/issues"
+  },
+  "keywords": ["claude-code", "macos", "overlay", "hooks"],
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
     "test": "node --test tests/"
   },
-  "description": "A stage that watches Claude Code sessions and answers their prompts",
   "engines": {
     "node": ">=18"
   }

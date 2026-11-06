@@ -58,6 +58,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## Cannon entrance cue
+## Audio cues (not MIT-licensed)
 
-`assets/audio/little-friend.mp3` contains the short requested “Say hello to my little friend” movie excerpt from Scarface (1983), downloaded from the sound button at https://www.myinstants.com/en/instant/say-hello-to-my-lil-friend-636/ . Movie audio retains its original rights; it is separate from the MIT-licensed code and mascot assets. The local file is used for the requested workshop entrance cue.
+The two short sound cues are third-party material. They are **not** covered by this project's MIT licence, and they remain the property of their rights holders.
+
+- `assets/audio/little-friend.mp3` (also `mac/Sources/Companion/Resources/little-friend.mp3`) is a short excerpt of the movie Scarface (1983), downloaded from https://www.myinstants.com/en/instant/say-hello-to-my-lil-friend-636/ . Movie audio retains its original rights. It plays when the cannon is armed.
+- `assets/audio/whip-summon.mp3` (also `mac/Sources/Companion/Resources/whip-summon.mp3`) is the first 0.65 s of the "cool hwhip" clip from myinstants.com, a user upload with no stated licence. It plays when the whip is summoned.
+
+The cues are optional. Delete both files from those two folders and the app runs without them; every other sound is synthesized in code. If you hold the rights to either clip and want it removed, open an issue and it will be taken down.

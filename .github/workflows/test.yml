@@ -13,3 +13,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+  overlay:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the overlay and run its checks
+        working-directory: mac
+        run: |
+          swift build -c release --product Companion
+          swift run StageChecks

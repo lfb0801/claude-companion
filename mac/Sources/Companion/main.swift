@@ -15,7 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       overlay = OverlayController(model: model)
       toolbar = makeToolbar()
       model.hideToolbar = { [weak self] in self?.setToolbar(visible: false) }
-      ClickLog.start()
       hotKeys = makeHotKeys()
       refused = HotKeys.register(hotKeys)
       status = makeStatusItem()

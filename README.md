@@ -38,27 +38,32 @@ Claude Code stops and waits for you more often than you notice. A permission pro
 
 ## 🚀 Get started
 
-You need macOS 14+, Node 18+, Xcode command line tools, and Claude Code 2.1.319 or later.
+You need macOS 14+, Node 18+ (installed with Homebrew or nodejs.org, see the note below), the Xcode command line tools (`xcode-select --install`), and Claude Code 2.1.319 or later. There is no prebuilt download: you build the app yourself.
 
 **1. Build and launch the overlay**
 
 ```sh
+git clone https://github.com/lfb0801/claude-companion.git
+cd claude-companion
 mac/build-app.sh --open
 ```
 
-This builds `mac/build/Claude Companion.app`, a menu bar app with no Dock icon. It starts the Node backend from this repository if it is not already running.
+This builds `mac/build/Claude Companion.app`, a menu bar app with no Dock icon, and opens it. The app starts the Node backend from this repository if it is not already running, so **keep the clone where it is**: the path is baked into the app at build time. Move the folder and you need to rebuild.
 
 **2. Install the plugin**, inside Claude Code:
 
 ```
-/plugin marketplace add /path/to/claude-companion
+/plugin marketplace add lfb0801/claude-companion
 /plugin install companion-stage@companion
 ```
 
-New sessions report to the Companion from then on. That's it.
+Restart any running Claude Code sessions, or start new ones. They report to the Companion from then on. That's it.
+
+> [!NOTE]
+> The app looks for Node at `/opt/homebrew/bin/node`, `/usr/local/bin/node` or `/usr/bin/node`. If you use nvm, fnm or Volta, it will not find it. Run `npm start` in the clone yourself and the app connects to that instead.
 
 > [!TIP]
-> Prefer to run only the backend? `npm start` serves it on `http://localhost:5173`.
+> Want to try it without Claude Code? Run `npm start` and open `http://localhost:5173/?demo` for the browser stage with three fake sessions.
 
 ## 🎮 Your tools
 
@@ -71,10 +76,15 @@ Global hotkeys work from any app and need no Accessibility permission.
 | <kbd>⌃⌥</kbd> <kbd>G</kbd> | 💥 **Cannon** | Fires approvals at whatever it hits. |
 | <kbd>⌃⌥</kbd> <kbd>H</kbd> | 🧑‍💼 **Approval Intern** | Approves everything, everywhere. |
 | <kbd>⌃⌥</kbd> <kbd>X</kbd> | 🧹 Put tools away | Disarm whatever you are holding. |
-| <kbd>⌃⌥</kbd> <kbd>M</kbd> | 🔊 Sound | On or off. |
-| <kbd>⌃⌥</kbd> <kbd>T</kbd> | 🧰 Toolbar | Bring the floating toolbar back. |
+| <kbd>⌃⌥</kbd> <kbd>T</kbd> | 🧰 Toolbar | Show or hide the floating toolbar. |
+
+Muting the sound and quitting live in the menu bar icon's menu. If macOS refuses a hotkey because another app already owns it, use the toolbar buttons instead.
 
 **No tool in hand?** Click any prompt to deal its cards. Hover a character to read its recent transcript.
+
+## 💬 Optional: Remarc comments
+
+If you use [Remarc](https://remarc.app) and its Claude Code plugin (version 0.13 was used here), the toolbar can link one session so your Remarc comments arrive in it as prompts, live or held back until you send them. With no session linked, the toolbar shows Remarc screenshot and note buttons. These press Remarc's own global shortcuts (<kbd>⌃⌥</kbd> <kbd>S</kbd> and <kbd>⌃⌥</kbd> <kbd>C</kbd>), which needs the Accessibility permission, so macOS asks the first time you click one. Skip all of this and nothing else changes.
 
 ## 🔀 How answering works
 
@@ -94,7 +104,9 @@ Accepted for a personal tool on your own machine. Read them before you turn the 
 - **The Intern approves anything,** destructive commands included, in every session. Only `permissions.deny` rules in your Claude Code settings still stop it. A stray cannon shot approves whatever it hits.
 - **No login.** The server refuses requests from other websites and other local ports (Origin and Host checks), but any program on your machine can call it.
 - **Transcript format.** The hover log and terminal-answer detection read Claude Code's transcript JSONL, which is undocumented and may change.
-- **Audio.** `assets/audio/little-friend.mp3` is a film clip, and `assets/audio/whip-summon.mp3` is the first 0.65 s of "cool hwhip" from myinstants.com, a user upload with no stated licence. Making this repository public would need both removed from history.
+- **Two audio clips are not MIT-licensed.** `little-friend.mp3` is a movie excerpt and `whip-summon.mp3` is a user upload from myinstants.com with no stated licence. They are third-party material, kept here for the fun of it. If you fork or redistribute this project, delete both files from `assets/audio/` and `mac/Sources/Companion/Resources/` first; the app runs fine without them. Rights holders can open an issue to have them removed. Details are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+- **Not signed or notarized.** You build the app on your own machine, so Gatekeeper stays out of the way, but a rebuilt app keeps its Accessibility grant only because the build pins it to the bundle identifier.
+- **Unofficial.** This is a personal project, not made by or affiliated with Anthropic. "Claude" and "Claude Code" belong to their owners, and the characters are fan art (see the notices).
 
 ## 🗺️ Under the hood
 
@@ -117,7 +129,23 @@ flowchart LR
 | `spike/` | Phase 0 spike: hook behaviour findings and recording tools |
 | `tests/` | `npm test` replays recorded hook payloads and transcripts from `tests/fixtures/spike/` |
 
-Third-party notices are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+## 🧰 Development
+
+```sh
+npm test                          # Node server, inbox and browser-stage tests
+cd mac && swift run StageChecks   # checks for StageCore (physics, targeting, stage state)
+```
+
+Both run in CI on every push. The overlay writes the Node server's output to `~/Library/Logs/Companion/server.log`. `kill -USR1 <pid>` makes it save what it is drawing to `~/Library/Logs/Companion/snapshot.png`.
+
+## 🗑️ Uninstall
+
+1. Quit the app from its menu bar icon, then delete the clone and `~/Library/Logs/Companion`.
+2. In Claude Code, run `/plugin uninstall companion-stage@companion` and `/plugin marketplace remove companion`.
+
+## 📄 License
+
+[MIT](LICENSE) for the code. The Clawd artwork and the physics approach come from MIT-licensed projects, and the two audio cues are third-party and **not** MIT. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 <div align="center">
 <br />
