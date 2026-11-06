@@ -1,4 +1,6 @@
 node_modules/
+mac/.build/
+mac/build/
 *.log
 .DS_Store
 
