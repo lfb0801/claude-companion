@@ -50,15 +50,17 @@ final class StageView: NSView {
     let p = point(e); model.stage.mouse = p
     // Answer cards out: a card picks, anywhere else puts them away.
     // While a card is flipped for a note, a click elsewhere just flips it back.
+    let t = model.tools
     if let s = model.stage.spread {
       if let n = s.note { if s.card(at: p) != n.card { model.stage.cancelNote() }; return }
+      // The stamp (or the whip's handle) slammed on the cards requests changes.
+      if t.clickStamps && model.stage.onSpread(p) { model.stage.stampSpread(at: p); return }
       if let i = s.card(at: p) { model.stage.chooseCard(i) } else { model.stage.closeSpread() }
-      return
+      if !t.clickStamps { return }
     }
-    let t = model.tools
     if t.cannon { model.stage.firing = true; return }
-    // A click with the whip in hand stamps with the back of the handle: it denies what's under it.
-    if t.whip { model.stage.stamp(at: p); return }
+    // The stamp, or a click with the whip in hand (the back of its handle): denies what's under it.
+    if t.clickStamps { model.stage.stamp(at: p); return }
     model.clicked(at: p)
   }
   override func mouseUp(with e: NSEvent) { model.stage.firing = false }
@@ -98,7 +100,7 @@ final class StageView: NSView {
     case 49: if model.tools.cannon { model.stage.firing = true } // Space
     default:
       switch e.charactersIgnoringModifiers?.lowercased() {
-      case "w": model.toggle(\.whip); case "g": model.toggle(\.cannon)
+      case "w": model.toggle(\.whip); case "g": model.toggle(\.cannon); case "d": model.toggle(\.stamp)
       case "h": model.toggle(\.intern); case "m": model.toggle(\.muted)
       default: super.keyDown(with: e)
       }

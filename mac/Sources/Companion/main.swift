@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     return [
       HotKey(key: kVK_ANSI_W, letter: "W", title: "Whip") { m.toggle(\.whip) },
       HotKey(key: kVK_ANSI_G, letter: "G", title: "Cannon") { m.toggle(\.cannon) },
+      HotKey(key: kVK_ANSI_D, letter: "D", title: "Stamp (request changes)") { m.toggle(\.stamp) },
       HotKey(key: kVK_ANSI_H, letter: "H", title: "Approval Intern") { m.toggle(\.intern) },
       HotKey(key: kVK_ANSI_M, letter: "M", title: "Sound on/off") { m.toggle(\.muted) },
       HotKey(key: kVK_ANSI_X, letter: "X", title: "Put tools away") { m.disarm() },

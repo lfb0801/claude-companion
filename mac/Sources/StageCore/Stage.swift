@@ -9,12 +9,15 @@ public enum Sound: Equatable, Sendable {
 }
 
 /// The whip approves by swinging (no click); a click with it stamps with the back of the handle (deny).
+/// The stamp can also be held on its own: click to slam it (deny / request changes).
 public struct Tools: Equatable, Sendable {
-  public var whip = false, cannon = false, intern = false, muted = false
+  public var whip = false, cannon = false, stamp = false, intern = false, muted = false
   public init() {}
-  public var anyArmed: Bool { whip || cannon || intern }
+  public var anyArmed: Bool { whip || cannon || stamp || intern }
   /// Tools in your hand: they follow the cursor (the Intern works on its own).
-  public var inHand: Bool { whip || cannon }
+  public var inHand: Bool { whip || cannon || stamp }
+  /// A click stamps: with the stamp, or with the back of the whip's handle.
+  public var clickStamps: Bool { whip || stamp }
   /// The cannon takes every click (hold to fire). The whip only takes clicks on a character or
   /// its prompt (to stamp); anywhere else your clicks still go to your other apps.
   public var takesMouse: Bool { cannon }
@@ -113,7 +116,8 @@ public final class Stage {
   public var firing = false
   /// The answer cards dealt for a question, if any (Spread.swift).
   public internal(set) var spread: Spread? = nil
-  public private(set) var cannonEntry = 0, internFlash = 0, stampReady = 0
+  public private(set) var cannonEntry = 0, internFlash = 0
+  public internal(set) var stampReady = 0
   public private(set) var shake = 0.0
   var lastFire = 0, lastSound = -100
   public var onAnswer: (Answer) -> Void = { _ in }
@@ -203,6 +207,8 @@ public final class Stage {
     if t.cannon && !was.cannon { cannonEntry = 90; if !t.muted { onSound(.cannonCue) } }
     if t.whip && !was.whip { whip = Whip(mouse.x, mouse.y, width: width, height: height); swing = SwingGate(); swing.last = mouse; if !t.muted { onSound(.whipCue) } }
     if !t.whip { whip = nil }
+    if t.stamp && !was.stamp { onSound(.toggle(on: true)); burst(mouse.x, mouse.y, "D", .red, 5) }
+    if !t.stamp && was.stamp { onSound(.toggle(on: false)) }
     if t.muted && !was.muted { onSound(.stopCues) }
   }
 
@@ -295,7 +301,9 @@ public final class Stage {
     if let w = whip {
       swing.move(mouse, tick: time)
       if w.step(mouse, width: width, height: height) { crackSound() }
-      if !swing.spent {
+      // Cards out: the lash only picks cards; it leaves the character alone.
+      if spread != nil { lashCards() }
+      else if !swing.spent {
         let list = Array(targets.reversed())
         if let c = list.first(where: { ropeHits(w, center: Point($0.x, $0.y), r: $0.r) }) ?? list.first(where: { $0.box.map { b in whipHitsBox(w, b) } == true }) {
           swing.consume(tick: time); answer(c, decision: "allow", source: "whip")

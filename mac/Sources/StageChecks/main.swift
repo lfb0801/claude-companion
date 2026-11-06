@@ -356,6 +356,40 @@ check("cards: a plan gets its sheet (scrollable) above Approve and Keep planning
   r2.stage.chooseCard(0); try expect(r2.answers.map(\.decision) == ["allow"])
 }
 
+check("tools on dealt cards: the whip's lash picks the card it hits; the stamp requests changes") {
+  let r = Rig([session("a", questionPrompt("q1", [color]))]); r.settle()
+  let a = r.stage.characters["a"]!
+  r.stage.mouse = Point(a.x, a.y)
+  r.tools { $0.whip = true }
+  r.stage.openSpread(a)
+  let card = r.stage.spread!.cards[2].box, w = r.stage.whip!
+  for i in w.points.indices { w.points[i] = RopePoint(x: 5, y: 5, px: 5, py: 5) }
+  w.points[3] = RopePoint(x: card.x + card.w + 10, y: card.y + 20, px: card.x - 10, py: card.y + 20)  // a lash across "Green"
+  try expect(r.stage.lashCards())
+  try expect(r.answers.first?.answers == ["Which color?": "Green"], "\(r.answers)")
+  // With cards out, swinging the whip about over the character answers nothing by itself.
+  let r3 = Rig([session("c", questionPrompt("q3", [color]))]); r3.settle()
+  let c3 = r3.stage.characters["c"]!
+  r3.stage.mouse = Point(c3.x, c3.y); r3.tools { $0.whip = true }; r3.stage.openSpread(c3)
+  for k in 0..<120 { r3.stage.mouse = Point(c3.x + sin(Double(k) * 0.5) * 60, c3.y - 200); r3.stage.tick() }
+  try expect(r3.answers.allSatisfy { $0.answers != nil }, "only card picks, never a blind approve: \(r3.answers)")
+  let r2 = Rig([session("b", ask("p2", "permission"))]); r2.settle()
+  r2.tools { $0.stamp = true }
+  r2.stage.openSpread(r2.stage.characters["b"]!)
+  let allow = r2.stage.spread!.cards[0].box
+  try expect(r2.stage.onSpread(Point(allow.x + 5, allow.y + 5)))
+  try expect(r2.stage.stampSpread(at: Point(allow.x + 5, allow.y + 5)), "even on the Allow card, the stamp requests changes")
+  try expect(r2.answers.map { "\($0.decision) \($0.source)" } == ["deny stamp"]); try expect(r2.stage.spread == nil)
+  try expect(!r2.stage.stampSpread(at: Point(allow.x + 5, allow.y + 5)), "nothing left to stamp")
+}
+
+check("the stamp can be summoned on its own; it and the whip both stamp with a click") {
+  var t = Tools(); t.stamp = true
+  try expect(t.clickStamps && t.inHand && !t.takesMouse)
+  t = Tools(); t.whip = true; try expect(t.clickStamps)
+  t = Tools(); t.cannon = true; try expect(!t.clickStamps)
+}
+
 check("cards go away when the prompt is answered elsewhere") {
   let r = Rig([session("a", questionPrompt("q1", [color])), session("b", ask("p2", "permission"))]); r.settle()
   r.stage.openSpread(r.stage.characters["a"]!)

@@ -231,8 +231,17 @@ struct Renderer {
       let a = Double(s.age)
       stampDevice(x: s.x, y: s.y, lift: s.age < 5 ? (5 - a) * 16 : s.age > 26 ? (a - 26) * 20 : 0, scale: s.age < 5 ? 1 + (5 - a) * 0.07 : 1, alpha: s.age > 30 ? Double(Layout.slam - s.age) / 6 : 1, grey: false)
     }
+    // The stamp in hand hovers over the cursor (greyed while it cools down after a slam).
+    if stage.tools.stamp && stage.slams.isEmpty {
+      let wait = max(0, stage.stampReady - stage.time), m = stage.mouse
+      stampDevice(x: m.x, y: m.y, lift: wait > 0 ? 70 : 44, scale: 1, alpha: wait > 0 ? 0.45 : 0.85, grey: wait > 0)
+      ctx.setStrokeColor(NSColor(hex: wait > 0 ? 0xff9b82 : 0xffe3dc).cgColor); ctx.setLineWidth(4)
+      if wait > 0 { ctx.addArc(center: CGPoint(x: m.x, y: m.y), radius: 26, startAngle: -.pi / 2, endAngle: -.pi / 2 + (1 - Double(wait) / Double(Layout.stampCooldown)) * .pi * 2, clockwise: false) }
+      else { ctx.addEllipse(in: CGRect(x: m.x - 9, y: m.y - 9, width: 18, height: 18)) }
+      ctx.strokePath()
+    }
     // With the whip in hand, a ring round the handle shows the stamp cooling down after a slam.
-    if stage.tools.whip, stage.slams.isEmpty, stage.stampReady > stage.time {
+    if stage.tools.whip, !stage.tools.stamp, stage.slams.isEmpty, stage.stampReady > stage.time {
       let wait = stage.stampReady - stage.time, m = stage.mouse
       ctx.setStrokeColor(NSColor(hex: 0xff9b82).cgColor); ctx.setLineWidth(4)
       ctx.addArc(center: CGPoint(x: m.x, y: m.y), radius: 26, startAngle: -.pi / 2, endAngle: -.pi / 2 + (1 - Double(wait) / Double(Layout.stampCooldown)) * .pi * 2, clockwise: false)

@@ -158,6 +158,39 @@ extension Stage {
   }
   public func closeSpread() { if spread != nil { spread = nil; onSound(.toggle(on: false)) } }
 
+  /// The whip's lash on the dealt cards: picks the first card a fast-moving rope segment crosses.
+  @discardableResult
+  public func lashCards() -> Bool {
+    guard let w = whip, !swing.spent, let s = spread, s.note == nil,
+          let i = s.cards.indices.first(where: { whipHitsBox(w, s.cards[$0].box) }) else { return false }
+    swing.consume(tick: time); crackSound(); chooseCard(i)
+    return true
+  }
+
+  /// Whether a point is on the dealt cards, the plan sheet, or the banner above them.
+  public func onSpread(_ p: Point) -> Bool {
+    guard let s = spread else { return false }
+    if s.card(at: p) != nil || s.sheet?.contains(p) == true { return true }
+    let xs = s.cards.map(\.box.x) + (s.sheet.map { [$0.x] } ?? []), xe = s.cards.map { $0.box.x + $0.box.w } + (s.sheet.map { [$0.x + $0.w] } ?? [])
+    return Box(x: xs.min() ?? 0, y: s.bannerY - 44, w: (xe.max() ?? 0) - (xs.min() ?? 0), h: 50).contains(p)
+  }
+
+  /// The stamp slammed on the cards: request changes. Denies a permission, sends a plan back,
+  /// declines a question; just puts "waiting for you" away.
+  @discardableResult
+  public func stampSpread(at p: Point) -> Bool {
+    guard let s = spread, time >= stampReady, let c = characters[s.session], !c.answered, c.prompt?.id == s.prompt else { return false }
+    stampReady = time + Layout.stampCooldown
+    slams.append(Slam(x: p.x, y: p.y))
+    spread = nil
+    let decision = s.kind == "input" ? "allow" : "deny"
+    c.answered = true; c.decision = decision
+    c.stamp = StampMark(text: s.kind == "input" ? "LATER" : s.kind == "plan" ? "CHANGES" : "DENIED", approve: false, life: 150, max: 150)
+    onSound(.thunk(light: false)); addShake(9); burst(p.x, p.y, "✕", .red, 6)
+    onAnswer(Answer(session: c.id, prompt: s.prompt, decision: decision, source: "stamp"))
+    return true
+  }
+
   /// Mouse wheel over the plan sheet.
   public func scrollSheet(lines: Int) { guard var s = spread, s.sheet != nil else { return }; s.sheetScroll = max(0, s.sheetScroll + lines); spread = s }
 
