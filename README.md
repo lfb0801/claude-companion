@@ -46,7 +46,7 @@ You need macOS 14+, Node 18+, Xcode command line tools, and Claude Code 2.1.319 
 mac/build-app.sh --open
 ```
 
-This builds `mac/build/Companion.app`, a menu bar app with no Dock icon. It starts the Node backend from this repository if it is not already running.
+This builds `mac/build/Claude Companion.app`, a menu bar app with no Dock icon. It starts the Node backend from this repository if it is not already running.
 
 **2. Install the plugin**, inside Claude Code:
 
@@ -102,7 +102,7 @@ Accepted for a personal tool on your own machine. Read them before you turn the 
 flowchart LR
     CC["Claude Code sessions"] -- "hooks" --> P["companion-stage plugin"]
     P -- "POST /ingest" --> S["Node server<br/>127.0.0.1:5173"]
-    S -- "SSE /events" --> O["Swift overlay<br/>(Companion.app)"]
+    S -- "SSE /events" --> O["Swift overlay<br/>(Claude Companion.app)"]
     O -- "POST /answer" --> S
     S -- "allow / deny / answers" --> CC
 ```

@@ -38,10 +38,10 @@ struct Toolbar: View {
   @ObservedObject var model: AppModel
   var body: some View {
     HStack(spacing: 6) {
-      tool("W", "🪢", "Whip", \.whip, help: "Swing it to approve what the lash hits; click a prompt to stamp it with the handle (deny)")
-      tool("G", "💥", "Cannon", \.cannon, help: "Hold the mouse to fire approvals")
-      tool("D", "🔖", "Stamp", \.stamp, help: "Click a prompt or its cards to request changes (deny)")
-      tool("H", "🧑‍💼", "Approval Intern", \.intern, help: "Approves every prompt, in every session")
+      tool("W", "lasso", "Whip", \.whip, help: "Swing it to approve what the lash hits; click a prompt to stamp it with the handle (deny)")
+      tool("G", "scope", "Cannon", \.cannon, help: "Hold the mouse to fire approvals")
+      tool("D", "square.and.pencil", "Stamp", \.stamp, help: "Click a prompt or its cards to request changes (deny)")
+      tool("H", "person.fill.checkmark", "Approval Intern", \.intern, help: "Approves every prompt, in every session")
       Button { model.toggle(\.muted) } label: { Image(systemName: model.tools.muted ? "speaker.slash.fill" : "speaker.wave.2.fill") }.help("Sound · \(HotKeys.symbol)M from any app")
       Menu {
         if model.sessions.all.isEmpty { Text("No sessions yet") }
@@ -54,7 +54,7 @@ struct Toolbar: View {
         Text(picked.map { "✓ \($0.folder ?? "session")" } ?? "Sessions \(model.sessions.all.count)")
       }.fixedSize()
       Button { model.startRemarc() } label: {
-        Text(model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "💬…" : "💬✓") : "💬✗" } ?? "💬")
+        Image(systemName: model.remarcResult.map { $0.ok ? ($0.message == "Starting…" ? "ellipsis.bubble" : "checkmark.bubble") : "exclamationmark.bubble" } ?? "text.bubble")
       }.help(model.remarcResult?.message ?? "Remarc: link the main session; its comments arrive as prompts and it routes them to nested sessions")
       Circle().fill(model.connected ? lime : Color.gray).frame(width: 8, height: 8).help(model.connected ? "Connected to the companion server" : "Server offline, retrying")
     }
@@ -63,7 +63,7 @@ struct Toolbar: View {
   }
   private func tool(_ key: String, _ icon: String, _ name: String, _ kp: WritableKeyPath<Tools, Bool>, help: String) -> some View {
     let on = model.tools[keyPath: kp]
-    return Button { model.toggle(kp) } label: { Text(icon).font(.system(size: 16)) }
+    return Button { model.toggle(kp) } label: { Image(systemName: icon).font(.system(size: 14, weight: .semibold)) }
       .tint(on ? lime : nil).buttonStyle(.borderedProminent)
       .help("\(name): \(help) · \(HotKeys.symbol)\(key) from any app")
   }
