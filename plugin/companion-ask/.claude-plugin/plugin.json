@@ -1,0 +1,1 @@
+{ "name": "companion-ask", "version": "0.1.0", "description": "Answers AskUserQuestion from the Claude Code companion instead of the terminal dialog" }
