@@ -14,7 +14,7 @@ import {createRemarcSession} from './remarc.mjs';
 const types = {'.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.mp3': 'audio/mpeg'};
 const MAX_BODY = 4 << 20;
 
-export function createServer({companion = createCompanion(), launcher = null, root = path.dirname(fileURLToPath(import.meta.url)), port = 5173} = {}) {
+export function createServer({companion = createCompanion(), root = path.dirname(fileURLToPath(import.meta.url)), port = 5173} = {}) {
   // Allowed Host / Origin values follow the port actually bound (tests listen on port 0).
   const bound = () => server.address()?.port ?? port;
   const hostOk = h => h === `localhost:${bound()}` || h === `127.0.0.1:${bound()}`;
@@ -35,8 +35,6 @@ export function createServer({companion = createCompanion(), launcher = null, ro
       // This stops other websites in your browser from answering prompts or reading sessions.
       if (!hostOk(req.headers.host)) return json(res, {error: 'bad host'}, 403);
       if (req.headers.origin && !originOk(req.headers.origin)) return json(res, {error: 'bad origin'}, 403);
-      // Launching sessions, recent projects, resume, xterm assets (launcher.mjs).
-      if (launcher && await launcher.handle(req, res, url)) return;
 
       if (p === '/ingest' && req.method === 'POST') {
         const payload = await body(req);
@@ -87,10 +85,6 @@ export function createServer({companion = createCompanion(), launcher = null, ro
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const PORT = 5173;
-  const {createLauncher} = await import('./launcher.mjs');
-  // Only this page may launch sessions or open terminals: not other sites, not other local ports.
-  const launcher = createLauncher({allowOrigin: o => !o || o === `http://localhost:${PORT}` || o === `http://127.0.0.1:${PORT}`});
-  const server = createServer({launcher, port: PORT});
-  launcher.attach(server);
+  const server = createServer({port: PORT});
   server.listen(PORT, '127.0.0.1', () => console.log(`Claude Code companion · http://localhost:${PORT}`));
 }

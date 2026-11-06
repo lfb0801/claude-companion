@@ -1,15 +1,13 @@
 import {initial,reduce,TOOLS} from './state.js';
 import {Theater} from './theater.js';
 import {startDemo} from './demo.js';
-import {createDrawer} from './drawer.js';
-import {createLaunchPanel,resumeSession} from './launch-panel.js';
 
 const app=document.querySelector('#app');
 const TOOL_INFO={whip:['W','Whip','approves what it hits'],cannon:['G','Cannon','Space or hold the mouse to fire, approves'],stamp:['D','Stamp','click a prompt to deny it'],intern:['H','Approval Intern','approves everything, in every session']};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const demo=new URLSearchParams(location.search).has('demo');
 app.innerHTML=`<main class="stage"><div class="stage-inner"><canvas aria-label="Claude Code companion stage"></canvas></div></main>
-<nav class="toolbar" aria-label="Tools"><div id="tools"></div><button id="mute" class="tool"><span class="key">M</span><span>Sound</span></button><button id="sessions" class="tool" aria-expanded="false"><span class="key">S</span><span>Sessions</span></button><button id="launch" class="tool"><span class="key">L</span><span>Launch</span></button><span class="link" id="link">connecting…</span></nav>
+<nav class="toolbar" aria-label="Tools"><div id="tools"></div><button id="mute" class="tool"><span class="key">M</span><span>Sound</span></button><button id="sessions" class="tool" aria-expanded="false"><span class="key">S</span><span>Sessions</span></button><span class="link" id="link">connecting…</span></nav>
 <aside class="session-list" id="session-list" hidden><ul></ul></aside>
 <aside class="log-panel" id="log" hidden><header><b id="log-title"></b><small id="log-sub"></small></header><ol id="log-lines"></ol></aside>
 <div class="card-backdrop" id="card" hidden><section class="card" role="dialog" aria-modal="true" aria-labelledby="card-title"></section></div>
@@ -26,23 +24,13 @@ const sessionOf=id=>state.sessions.find(s=>s.id===id);
 function onAnswer(e,answers){dispatch({type:'answered',id:e.owner,prompt:e.id});for(const f of listeners)f(e);if(!demo)fetch('/answer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session:e.owner,prompt:e.id,decision:e.decision,source:e.source,answers})}).catch(()=>{});}
 function dispatch(action){state=reduce(state,action);render();}
 
-// Terminals and launching (launcher.mjs). Launched sessions live in tmux `cc-<session id>`.
-const drawer=createDrawer(document.body);
-const launchPanel=createLaunchPanel(document.body,{onLaunched:({tmux,cwd})=>drawer.open({tmux,title:cwd.split('/').pop()})});
 const titleOf=s=>`${s.folder}${s.title?' · '+s.title:''}`;
-async function openSession(s){if(demo)return;try{
- const live=await (await fetch('/tmux')).json(),t=live.find(x=>x.session_id===s.id);
- if(t)return drawer.open({tmux:t.tmux,title:titleOf(s)});
- // Not started from the companion: offer "Resume here" (the warning covers a still-running original).
- if(!confirm(`${titleOf(s)} is not running in a companion terminal.\n\nResume it here?`))return;
- const r=await resumeSession({session_id:s.id,cwd:s.cwd});if(r)drawer.open({tmux:r.tmux,title:titleOf(s)});
-}catch(err){alert(err.message);}}
 // The session list reaches every session, on stage or off.
 const listEl=document.querySelector('#session-list');
 function renderList(){const btn=document.querySelector('#sessions');btn.lastElementChild.textContent=`Sessions${state.sessions.length?` (${state.sessions.length})`:''}`;if(listEl.hidden)return;
  listEl.querySelector('ul').innerHTML=state.sessions.length?state.sessions.map(s=>`<li><button data-open="${esc(s.id)}"><b>${esc(s.folder)}</b><small>${esc(s.title||s.cwd||'')}</small><span class="badge ${s.prompt?'needs':''}">${s.prompt?'needs you':'working'}</span></button></li>`).join(''):'<li class="empty">No sessions yet</li>';}
 function toggleList(force){listEl.hidden=force===undefined?!listEl.hidden:!force;document.querySelector('#sessions').setAttribute('aria-expanded',String(!listEl.hidden));renderList();}
-listEl.addEventListener('click',e=>{const id=e.target.closest('[data-open]')?.dataset.open,s=id&&sessionOf(id);if(!s)return;toggleList(false);const a=theater.entities.get(s.id);if(s.prompt&&a&&!a.answered)openCard(a);else openSession(s);});
+listEl.addEventListener('click',e=>{const id=e.target.closest('[data-open]')?.dataset.open,s=id&&sessionOf(id);if(!s)return;toggleList(false);const a=theater.entities.get(s.id);if(s.prompt&&a&&!a.answered)openCard(a);});
 function render(){theater.sync(state);document.querySelector('#tools').innerHTML=TOOLS.map(id=>{const [key,title,desc]=TOOL_INFO[id];return `<button class="tool ${state[id]?'active':''}" data-tool="${id}" aria-pressed="${state[id]}" title="${esc(desc)}"><span class="key">${key}</span><span>${esc(title)}</span></button>`;}).join('');const mute=document.querySelector('#mute');mute.classList.toggle('active',!state.muted);mute.setAttribute('aria-pressed',String(!state.muted));mute.lastElementChild.textContent=state.muted?'Muted':'Sound';if(card.id&&!sessionOf(card.id)?.prompt)closeCard();renderList();}
 
 // Live sessions from the server.
@@ -90,16 +78,16 @@ logEl.addEventListener('pointerenter',()=>clearTimeout(hover.leave));logEl.addEv
 
 function unlock(){theater.unlock();document.querySelector('#unlock')?.remove();}
 const toPoint=e=>{const r=surface.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*1600,y:(e.clientY-r.top)/r.height*900};};
-document.addEventListener('click',e=>{unlock();const b=e.target.closest?.('button');if(!b)return;if(b.dataset.tool){dispatch({type:b.dataset.tool});if(anyTool())hideLog();}if(b.id==='mute')dispatch({type:'mute'});if(b.id==='launch')launchPanel.toggle();if(b.id==='sessions')toggleList();});
+document.addEventListener('click',e=>{unlock();const b=e.target.closest?.('button');if(!b)return;if(b.dataset.tool){dispatch({type:b.dataset.tool});if(anyTool())hideLog();}if(b.id==='mute')dispatch({type:'mute'});if(b.id==='sessions')toggleList();});
 const keymap={w:'whip',g:'cannon',d:'stamp',h:'intern',m:'mute',enter:'crack'};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){theater.firing=false;closeCard();hideLog();return;}if(!document.querySelector('#card').hidden)return;if(e.target.matches?.('input,textarea')||e.metaKey||e.ctrlKey||e.altKey)return;const key=e.key.toLowerCase();if(key==='f'){e.preventDefault();if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});return;}if(key===' '){e.preventDefault();unlock();theater.firing=true;return;}if(e.repeat)return;if(key==='l'){e.preventDefault();launchPanel.toggle();return;}if(key==='s'){e.preventDefault();toggleList();return;}if(keymap[key]){e.preventDefault();unlock();dispatch({type:keymap[key]});if(anyTool())hideLog();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){theater.firing=false;closeCard();hideLog();return;}if(!document.querySelector('#card').hidden)return;if(e.target.matches?.('input,textarea')||e.metaKey||e.ctrlKey||e.altKey)return;const key=e.key.toLowerCase();if(key==='f'){e.preventDefault();if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});return;}if(key===' '){e.preventDefault();unlock();theater.firing=true;return;}if(e.repeat)return;if(key==='s'){e.preventDefault();toggleList();return;}if(keymap[key]){e.preventDefault();unlock();dispatch({type:keymap[key]});if(anyTool())hideLog();}});
 document.addEventListener('keyup',e=>{if(e.key===' ')theater.firing=false;});
 window.addEventListener('blur',()=>{theater.firing=false;});
 surface.addEventListener('pointermove',e=>{theater.mouse=toPoint(e);hoverAt(theater.mouse);});
 surface.addEventListener('pointerleave',()=>{hover.leave=setTimeout(hideLog,250);});
 surface.addEventListener('pointerdown',e=>{unlock();theater.mouse=toPoint(e);if(!anyTool()&&e.button===0){const a=theater.pick(theater.mouse),m=a?.box,p=theater.mouse,onBox=m&&p.x>=m.x&&p.x<=m.x+m.w&&p.y>=m.y&&p.y<=m.y+m.h;if(!a)return;hideLog();const s=sessionOf(a.id);
- // The prompt box opens the prompt card; the character opens its terminal drawer.
- if(onBox&&a.prompt&&!a.answered)openCard(a);else if(s)openSession(s);return;}if(state.stamp&&e.button===0)theater.stamp(theater.mouse);theater.firing=state.cannon&&!state.stamp;});
+ // The prompt box opens the prompt card.
+ if(onBox&&a.prompt&&!a.answered)openCard(a);return;}if(state.stamp&&e.button===0)theater.stamp(theater.mouse);theater.firing=state.cannon&&!state.stamp;});
 window.addEventListener('pointerup',()=>theater.firing=false);
 
 render();
