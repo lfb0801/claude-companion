@@ -11,6 +11,8 @@
 A native macOS overlay that watches every Claude Code session you have running.<br />
 When one needs you, its character walks on stage. Answer with a whip, a stamp, a cannon, or an intern.
 
+<img src="docs/overlay.png" width="460" alt="Three sessions waiting on the stage, each with its permission prompt" />
+
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-native-F05138?logo=swift&logoColor=white)
 ![Node 18+](https://img.shields.io/badge/Node-18%2B-5FA04E?logo=nodedotjs&logoColor=white)
