@@ -26,3 +26,5 @@ export class Whip {
 }
 export function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);}
 export function ropeHits(whip,agent){return whip.points.some((p,i)=>i>1&&Math.hypot(p.x-p.px,p.y-p.py)*3>18&&(segmentDistance(agent,whip.points[i-1],p)<agent.r||segmentDistance(agent,{x:p.px,y:p.py},p)<agent.r));}
+export function segmentHitsBox(a,b,box,padding=0){const x=box.x-padding,y=box.y-padding,w=box.w+padding*2,h=box.h+padding*2;if(a.x>=x&&a.x<=x+w&&a.y>=y&&a.y<=y+h||b.x>=x&&b.x<=x+w&&b.y>=y&&b.y<=y+h)return true;const dx=b.x-a.x,dy=b.y-a.y;let lo=0,hi=1;for(const [p,q] of [[-dx,a.x-x],[dx,x+w-a.x],[-dy,a.y-y],[dy,y+h-a.y]]){if(!p){if(q<0)return false;}else{const r=q/p;if(p<0)lo=Math.max(lo,r);else hi=Math.min(hi,r);if(lo>hi)return false;}}return true;}
+export function whipHitsBox(whip,box){return whip.points.some((p,i)=>i>1&&Math.hypot(p.x-p.px,p.y-p.py)*3>18&&(segmentHitsBox(whip.points[i-1],p,box)||segmentHitsBox({x:p.px,y:p.py},p,box)));}
