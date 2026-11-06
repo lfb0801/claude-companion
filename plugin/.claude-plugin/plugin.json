@@ -1,6 +1,6 @@
 {
   "name": "companion-stage",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Sends Claude Code session events to the companion stage on 127.0.0.1:5173, lets it answer permission prompts and questions, and delivers Remarc comments to main sessions",
   "license": "MIT"
 }

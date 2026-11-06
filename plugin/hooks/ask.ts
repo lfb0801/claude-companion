@@ -1,4 +1,4 @@
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 // The companion server. Protocol:
 //   POST /ask            {session_id, cwd, tool_use_id, questions} -> {id}
@@ -16,6 +16,33 @@ type AskReply =
   | { status: 'declined' }
   | { status: 'cancelled' }
   | { status: 'interrupted' }
+
+let isTurnRunning = false
+let isPolling = false
+let sessionId: string | undefined
+
+async function poll($: EngineInterface) {
+  if (isPolling || isTurnRunning) return
+  isPolling = true
+  try {
+    sessionId ??= await $.session.id()
+    const res = await $.http.fetch(`${COMPANION}/inbox/${encodeURIComponent(sessionId)}`)
+    const reply = JSON.parse(res.text) as { armed: boolean; prompt?: string; ids?: string[] }
+    if (!reply.armed || !reply.prompt) return
+    const submitted = await $.prompt.submit({ text: reply.prompt })
+    if (submitted.drop !== undefined) {
+      await $.http.fetch(`${COMPANION}/inbox/${encodeURIComponent(sessionId)}/release`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids: reply.ids ?? [] }),
+      })
+    }
+  } catch {
+    // The companion is not running: nothing to deliver.
+  } finally {
+    isPolling = false
+  }
+}
 
 export const register: Register = on => {
   on('tool.call', { tool: 'AskUserQuestion' }, async ($, e, next) => {
@@ -66,5 +93,26 @@ export const register: Register = on => {
       next.signal.removeEventListener('abort', cancel)
       $.ui.status(undefined)
     }
+  })
+
+  // Delivers outside comments (Remarc today) to this session as prompts. The companion decides
+  // which sessions get an inbox: only main sessions, never worktree ones. Protocol:
+  //   GET  /inbox/:session          -> {armed: false} | {armed: true, prompt?, ids?, error?}
+  //   POST /inbox/:session/release  {ids} -> hands comments back that could not be submitted
+  // (One module per plugin, so this lives beside the ask mod.)
+  on('session.start', async ($, e, next) => {
+    $.clock.every(10_000, () => void poll($))
+    return next(e)
+  })
+  on('turn.start', ($, e, next) => {
+    if (e.agentId === undefined) isTurnRunning = true
+    return next(e)
+  })
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      isTurnRunning = false
+      $.clock.after(1500, () => void poll($))
+    }
+    return next(e)
   })
 }
