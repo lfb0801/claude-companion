@@ -1,0 +1,17 @@
+node_modules/
+mac/.build/
+mac/build/
+*.log
+.DS_Store
+xcuserdata/
+
+# Claude Code: agent worktrees, and the types the engine lays beside the plugin's mod
+.claude/worktrees/
+plugin/.claude-plugin/types/
+
+# Local tooling
+.fantamentos/
+
+# Your bundle identifier and Apple team (copy .env.example)
+.env
+.claude/settings.local.json

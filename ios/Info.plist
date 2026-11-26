@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSBonjourServices</key>
+  <array><string>_phone-whip._tcp</string></array>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>Phone Whip connects to Claude Companion on your Mac over your local network.</string>
+  <key>UISupportedInterfaceOrientations</key>
+  <array><string>UIInterfaceOrientationPortrait</string></array>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Phone Whip uses your microphone when you record a prompt.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>Phone Whip turns your recording into text you can review before sending.</string>
+  <key>NSMotionUsageDescription</key>
+  <string>Phone Whip detects a wrist flick while you hold the arm control.</string>
+</dict>
+</plist>

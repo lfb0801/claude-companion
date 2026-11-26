@@ -1,0 +1,6 @@
+// Signing for Phone Whip. Set COMPANION_BUNDLE_ID and DEVELOPMENT_TEAM in the repository's .env
+// (copy .env.example). The app's bundle identifier is COMPANION_BUNDLE_ID plus ".phone-whip".
+COMPANION_BUNDLE_ID = local.claude-companion
+DEVELOPMENT_TEAM =
+#include? "../.env"
+PRODUCT_BUNDLE_IDENTIFIER = $(COMPANION_BUNDLE_ID).phone-whip
